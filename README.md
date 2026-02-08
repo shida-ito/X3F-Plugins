@@ -1,4 +1,4 @@
-# X3F for Lightroom (X3FforLr)
+# X3F for Lightroom Classic (X3FforLrC)
 
 SIGMA Merrill / Quattro シリーズのX3Fファイルを、Adobe Lightroom Classicで扱えるDNG形式に一括変換するためのプラグインです。
 Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exiftool`（メタデータコピー）を内部で使用し、スムーズなワークフローを提供します。
@@ -18,9 +18,9 @@ Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exift
 
 ## インストール方法
 1. このリポジトリをダウンロード（またはClone）します。
-2. フォルダ内の `X3FforLr.lrplugin` を任意の場所（例: `~/Documents/Plugins/`）に保存します。
+2. フォルダ内の `X3FforLrC.lrplugin` を任意の場所（例: `~/Documents/Plugins/`）に保存します。
 3. Lightroom Classic を起動し、メニューから **「ファイル」 > 「プラグインマネージャー」** を開きます。
-4. 左下の **「追加」** ボタンをクリックし、先ほど保存した `X3FforLr.lrplugin` フォルダを選択します。
+4. 左下の **「追加」** ボタンをクリックし、先ほど保存した `X3FforLrC.lrplugin` フォルダを選択します。
 5. プラグインがリストに追加され、正常に「有効」となっていることを確認して「完了」をクリックします。
 
 ## 使い方
@@ -43,7 +43,7 @@ Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exift
 
 ## トラブルシューティング
 - **エラーが発生する場合**:
-  - ダイアログに表示されるパス（通常は `~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FConvert.log`）のログファイルを確認してください。
+  - ダイアログに表示されるパス（通常は `~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log`）のログファイルを確認してください。
   - 外部ドライブ上のファイルを変換する場合、ドライブのアクセス権限を確認してください。
 
 ## ライセンスとクレジット
