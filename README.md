@@ -60,3 +60,9 @@ Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exift
 - **Project**: [https://exiftool.org/](https://exiftool.org/)
 - **License**: Perl Artistic License / GNU GPL
 - **Copyright**: (c) 2003-2025, Phil Harvey
+
+## メンテナンスと免責
+本プロジェクトは、個人の趣味として作成・公開されたものです。
+**機能追加の要望、バグ報告、Pull Request等は受け付けておりません**ので、あらかじめご了承ください。
+ソースコードはMITライセンスの下で公開されていますので、必要に応じてForkしてご自由にお使いください。
+本ソフトウェアの使用により生じたいかなる損害についても、作者は責任を負いません。
