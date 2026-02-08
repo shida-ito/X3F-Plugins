@@ -1,0 +1,7 @@
+.DS_Store
+*.log
+
+*.lrprev
+*.lrcat
+*.lrcat-data
+*.lrcat-lock
