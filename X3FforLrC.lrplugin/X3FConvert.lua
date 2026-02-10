@@ -89,7 +89,7 @@ local function main()
             f:separator { fill_horizontal = 1 },
             f:row {
                 f:static_text { title = "Output Folder:", width = LrView.share "label_width" },
-                f:edit_text { value = LrView.bind "outputDir", fill_horizontal = 1 },
+                f:edit_field { value = LrView.bind "outputDir", fill_horizontal = 1 },
                 f:push_button {
                     title = "Browse...",
                     action = function()
