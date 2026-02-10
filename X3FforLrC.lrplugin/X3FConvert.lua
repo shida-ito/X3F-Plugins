@@ -4,6 +4,8 @@ local LrTasks = import 'LrTasks'
 local LrPathUtils = import 'LrPathUtils'
 local LrFileUtils = import 'LrFileUtils'
 local LrLogger = import 'LrLogger'
+local LrView = import 'LrView'
+local LrBinding = import 'LrBinding'
 local LrProgressScope = import 'LrProgressScope'
 
 local logger = LrLogger('X3FforLrC')
@@ -11,11 +13,18 @@ logger:enable("logfile")
 
 local function getExtractionBinary()
     local pluginPath = _PLUGIN.path
-    -- Depending on how the plugin is structured, bin might be directly under plugin root
-    -- or in a specified subfolder. We put it in 'bin'.
     local binaryPath = LrPathUtils.child(pluginPath, "bin")
     binaryPath = LrPathUtils.child(binaryPath, "x3f_extract")
     return binaryPath
+end
+
+local function getCpuCoreCount()
+    if not MAC_ENV then return 1 end
+    local status, result = LrTasks.execute("sysctl -n hw.ncpu")
+    if status == 0 then
+        return tonumber(result) or 1
+    end
+    return 1
 end
 
 local function main()
@@ -28,48 +37,81 @@ local function main()
             return
         end
 
-        -- Ensure binary is executable (macOS/Linux)
         if MAC_ENV then
-             local status = LrTasks.execute("chmod +x " .. string.format("%q", binary))
+             LrTasks.execute("chmod +x " .. string.format("%q", binary))
         end
 
+        -- 1. Select Source Folder
         local result = LrDialogs.runOpenPanel({
             title = "Select Folder with X3F Files",
             canChooseDirectories = true,
-            canChooseFiles = false, -- Only folders
+            canChooseFiles = false,
             allowsMultipleSelection = false,
         })
-
         if not result then return end
         local sourceDir = result[1]
 
-        logger:info("Selected source dir: " .. sourceDir)
-
-        -- Output Directory Selection
-        local outputDir = sourceDir
-        local verb = LrDialogs.confirm(
-            "Output Folder",
-            "Do you want to save DNG files in the same folder as the X3F files?\n(Default is the same folder)",
-            "Yes (Default)",
-            "Select Different Folder"
-        )
+        -- 2. Detect Cores and Prepare Settings UI
+        local coreCount = getCpuCoreCount()
+        local recommendedConcurrency = math.max(1, math.floor(coreCount / 2))
         
-        if verb == "cancel" then
-            local outResult = LrDialogs.runOpenPanel({
-                title = "Select Output Folder for DNG Files",
-                canChooseDirectories = true,
-                canChooseFiles = false,
-                allowsMultipleSelection = false,
-            })
-            if outResult then
-                outputDir = outResult[1]
-                logger:info("Selected output dir: " .. outputDir)
-            else
-                -- User cancelled output selection
-                return 
-            end
-        end
+        local f = LrView.osFactory()
+        local properties = LrBinding.makePropertyTable()
+        properties.useParallel = true
+        properties.concurrency = recommendedConcurrency
+        properties.outputDir = sourceDir
 
+        local c = f:column {
+            spacing = f:control_spacing(),
+            bind_to_object = properties,
+            f:row {
+                f:static_text { title = "Parallel Processing:", width = LrView.share "label_width" },
+                f:checkbox { value = LrView.bind "useParallel" },
+                f:static_text { title = "Run multiple conversions simultaneously" },
+            },
+            f:row {
+                f:static_text { title = "Concurrent Jobs:", width = LrView.share "label_width" },
+                f:edit_number {
+                    value = LrView.bind "concurrency",
+                    min = 1,
+                    max = coreCount,
+                    precision = 0,
+                    enabled = LrView.bind "useParallel",
+                },
+                f:static_text { title = "(Max: " .. coreCount .. ", Recommended: " .. recommendedConcurrency .. ")" },
+            },
+            f:separator { fill_horizontal = 1 },
+            f:row {
+                f:static_text { title = "Output Folder:", width = LrView.share "label_width" },
+                f:edit_text { value = LrView.bind "outputDir", fill_horizontal = 1 },
+                f:push_button {
+                    title = "Browse...",
+                    action = function()
+                        local outResult = LrDialogs.runOpenPanel({
+                            title = "Select Output Folder",
+                            canChooseDirectories = true,
+                            canChooseFiles = false,
+                            allowsMultipleSelection = false,
+                        })
+                        if outResult then
+                            properties.outputDir = outResult[1]
+                        end
+                    end,
+                },
+            },
+        }
+
+        local dialogResult = LrDialogs.presentModalDialog({
+            title = "X3F Conversion Settings",
+            contents = c,
+        })
+
+        if dialogResult == "cancel" then return end
+
+        local outputDir = properties.outputDir
+        local maxConcurrency = properties.useParallel and properties.concurrency or 1
+
+        -- 3. Collect Files
         local x3fFiles = {}
         for file in LrFileUtils.directoryEntries(sourceDir) do
             if string.lower(LrPathUtils.extension(file)) == "x3f" then
@@ -82,6 +124,7 @@ local function main()
             return
         end
 
+        -- 4. Process Files (Parallel Worker Pattern)
         local progressScope = LrProgressScope({
             title = "Converting X3F Files (Kalpanika)",
         })
@@ -89,151 +132,122 @@ local function main()
 
         local convertedCount = 0
         local errors = {}
+        local fileIndex = 1
+        local activeWorkers = 0
+        local lock = LrTasks.createSemaphore(1) -- For protecting shared state
 
-        for i, x3fPath in ipairs(x3fFiles) do
-            if progressScope:isCanceled() then break end
-
+        local function processOneFile(x3fPath)
             local filename = LrPathUtils.leafName(x3fPath)
-            progressScope:setCaption("Processing: " .. filename)
-
-            -- Calculate Output Paths
             local dngFilename = LrPathUtils.replaceExtension(filename, "dng")
             local dngPath = LrPathUtils.child(outputDir, dngFilename)
             local success = false
 
-            -- Check if DNG exists (clean name)
             if LrFileUtils.exists(dngPath) then
                 logger:info("DNG already exists for " .. filename)
-                -- success = true -- No need to set this here, as it's only used in the 'else' block
+                success = true
             else
-                -- Convert
-                 -- Command: x3f_extract -dng -o <dir> <x3f_file>
-                 -- Explicitly specifying output directory
                 local cmd = string.format('"%s" -dng -o "%s" "%s"', binary, outputDir, x3fPath)
-                
                 logger:info("Executing: " .. cmd)
-
                 local retval = LrTasks.execute(cmd)
                 
-                local success = false
                 if retval == 0 then
-                    -- The tool outputs 'filename.X3F.dng' (appending extension) in the output dir
                     local rawOutput = LrPathUtils.child(outputDir, filename .. ".dng")
-                    local rawOutputUpper = LrPathUtils.child(outputDir, filename .. ".DNG") -- just in case
+                    local rawOutputUpper = LrPathUtils.child(outputDir, filename .. ".DNG")
 
-                    -- Retry loop for file existence
                     local function waitForFile(path)
-                        for attempt = 1, 10 do
+                        for attempt = 1, 30 do -- Up to 3 seconds with 0.1s steps
                             if LrFileUtils.exists(path) then return true end
-                            LrTasks.sleep(0.5) -- wait 500ms
+                            LrTasks.sleep(0.1)
                         end
                         return false
                     end
 
-                    -- Check for raw output and rename it
                     local detectedArtifact = nil
                     if waitForFile(rawOutput) then
                         detectedArtifact = rawOutput
                     elseif waitForFile(rawOutputUpper) then
                         detectedArtifact = rawOutputUpper
-                    -- Fallback: maybe it named it correctly directly? (unlikely for this tool but possible)
-                    elseif waitForFile(dngPath) then
-                         success = true -- It IS correct already
+                    elseif LrFileUtils.exists(dngPath) then
+                        success = true
                     end
 
                     if detectedArtifact then
-                        -- Rename to clean .dng
                         local renamed, reason = LrFileUtils.move(detectedArtifact, dngPath)
                         if renamed then
                             success = true
-                            logger:info("Renamed " .. LrPathUtils.leafName(detectedArtifact) .. " to " .. LrPathUtils.leafName(dngPath))
                             
-                            -- Copy Metadata using exiftool
+                            -- Exiftool
                             local exiftoolPath = LrPathUtils.child(_PLUGIN.path, "bin")
                             exiftoolPath = LrPathUtils.child(exiftoolPath, "exiftool")
-                            
                             local exiftoolCmd
                             if LrFileUtils.exists(exiftoolPath) then
-                                -- Ensure executable permission for bundled exiftool
-                                if MAC_ENV then
-                                    LrTasks.execute("chmod +x " .. string.format("%q", exiftoolPath))
-                                end
+                                if MAC_ENV then LrTasks.execute("chmod +x " .. string.format("%q", exiftoolPath)) end
                                 exiftoolCmd = string.format('"%s" -overwrite_original -tagsfromfile "%s" -all:all "%s"', exiftoolPath, x3fPath, dngPath)
                             else
-                                -- Fallback to system exiftool
-                                exiftoolCmd = string.format('/usr/local/bin/exiftool -overwrite_original -tagsfromfile "%s" -all:all "%s"', x3fPath, dngPath)
+                                exiftoolCmd = string.format('exiftool -overwrite_original -tagsfromfile "%s" -all:all "%s"', x3fPath, dngPath)
                             end
-
-                            logger:info("Copying metadata: " .. exiftoolCmd)
-                            local exitStatus = LrTasks.execute(exiftoolCmd)
-                            if exitStatus ~= 0 then
-                                logger:warn("Bundled Exiftool failed with exit code: " .. exitStatus .. ". Trying system exiftool...")
-                                -- Try just 'exiftool' without path or explicit /usr/local/bin
-                                local fallbackCmd = string.format('/usr/local/bin/exiftool -overwrite_original -tagsfromfile "%s" -all:all "%s"', x3fPath, dngPath)
-                                if not LrFileUtils.exists("/usr/local/bin/exiftool") then
-                                     fallbackCmd = string.format('exiftool -overwrite_original -tagsfromfile "%s" -all:all "%s"', x3fPath, dngPath)
-                                end
-                                
-                                logger:info("Retrying with system exiftool: " .. fallbackCmd)
-                                exitStatus = LrTasks.execute(fallbackCmd)
-                                if exitStatus ~= 0 then
-                                     logger:warn("System Exiftool retry failed with exit code: " .. exitStatus)
-                                else
-                                     logger:info("Metadata copied successfully using system exiftool.")
-                                end
-                            else
-                                logger:info("Metadata copied successfully.")
-                            end
-
-                        else
-                            logger:error("Failed to rename " .. detectedArtifact .. " to " .. dngPath .. ": " .. (reason or "unknown"))
-                            -- If delete fails, we might still have the artifact, but we consider this a partial failure or success?
-                            -- If we can't rename, let's at least leave it and count as success but warn?
-                            -- User wants .dng, so this is an error condition for strictness.
+                            LrTasks.execute(exiftoolCmd)
                         end
                     end
                 end
-
-                if success then
-                    convertedCount = convertedCount + 1
-                else
-                    logger:error("Conversion failed for " .. filename .. " (retval: " .. retval .. ")")
-                    if retval == 0 then
-                         logger:error("File was not found or could not be renamed. Expected final path: " .. dngPath)
-                         -- Debug: List files in directory to see what was created
-                         logger:error("Files in directory:")
-                         for entry in LrFileUtils.directoryEntries(sourceDir) do
-                             logger:error("  - " .. LrPathUtils.leafName(entry))
-                         end
-                    end
-                    table.insert(errors, filename)
-                end
             end
-            
-            progressScope:setPortionComplete(i, #x3fFiles)
-        end
 
-        local summary = "Processed " .. #x3fFiles .. " files.\nConverted: " .. convertedCount
-        if #errors > 0 then
-            local logPath = ""
-            if MAC_ENV then
-                logPath = LrPathUtils.child(LrPathUtils.getStandardFilePath('home'), "Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log")
+            lock:wait()
+            if success then
+                convertedCount = convertedCount + 1
             else
-                 -- Fallback for Windows (usually in Documents)
-                 logPath = LrPathUtils.child(LrPathUtils.getStandardFilePath('documents'), "X3FforLrC.log")
+                table.insert(errors, filename)
+            end
+            progressScope:setPortionComplete(convertedCount + #errors, #x3fFiles)
+            progressScope:setCaption(string.format("Processing... (%d/%d)", convertedCount + #errors, #x3fFiles))
+            lock:post()
+        end
+
+        local function worker()
+            while true do
+                local currentFile = nil
+                lock:wait()
+                if fileIndex <= #x3fFiles and not progressScope:isCanceled() then
+                    currentFile = x3fFiles[fileIndex]
+                    fileIndex = fileIndex + 1
+                end
+                lock:post()
+
+                if not currentFile then break end
+                processOneFile(currentFile)
             end
             
-            summary = summary .. "\nFailed: " .. #errors .. "\n\nPlease check the log file at:\n" .. logPath
+            lock:wait()
+            activeWorkers = activeWorkers - 1
+            lock:post()
+        end
+
+        activeWorkers = maxConcurrency
+        for i = 1, maxConcurrency do
+            LrTasks.startAsyncTask(worker)
+        end
+
+        -- Wait for all workers to finish
+        while true do
+            local done = false
+            lock:wait()
+            if activeWorkers == 0 then done = true end
+            lock:post()
+            if done then break end
+            LrTasks.sleep(0.2)
+        end
+
+        -- 5. Final Summary
+        progressScope:done()
+        local summary = string.format("Processed %d files.\nConverted: %d", #x3fFiles, convertedCount)
+        if #errors > 0 then
+            summary = summary .. "\nFailed: " .. #errors
         end
         
-        local canceled = progressScope:isCanceled()
-        progressScope:done()
-        
-        if not canceled then
+        if not progressScope:isCanceled() then
             LrDialogs.message("X3F Conversion Complete", summary)
         end
-
-    end) 
+    end)
 end
 
 main()
