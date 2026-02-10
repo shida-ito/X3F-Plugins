@@ -152,7 +152,24 @@ local function main()
         local errors = {}
         local fileIndex = 1
         local activeWorkers = 0
-        local lock = LrTasks.createSemaphore(1) -- For protecting shared state
+        
+        -- Fallback for LrTasks.createSemaphore (added in Lr 6.0)
+        local lock
+        if LrTasks.createSemaphore then
+            lock = LrTasks.createSemaphore(1)
+        else
+            -- Simple fallback lock using a boolean and sleep
+            local isLocked = false
+            lock = {
+                wait = function()
+                    while isLocked do LrTasks.sleep(0.01) end
+                    isLocked = true
+                end,
+                post = function()
+                    isLocked = false
+                end
+            }
+        end
 
         local function processOneFile(x3fPath)
             local filename = LrPathUtils.leafName(x3fPath)
