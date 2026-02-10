@@ -8,6 +8,7 @@ local LrView = import 'LrView'
 local LrBinding = import 'LrBinding'
 local LrFunctionContext = import 'LrFunctionContext'
 local LrProgressScope = import 'LrProgressScope'
+local LrEnvironment = import 'LrEnvironment'
 
 local logger = LrLogger('X3FforLrC')
 logger:enable("logfile") 
@@ -20,12 +21,25 @@ local function getExtractionBinary()
 end
 
 local function getCpuCoreCount()
-    if not MAC_ENV then return 1 end
-    local status, result = LrTasks.execute("sysctl -n hw.ncpu")
+    local isMac = LrEnvironment.platform() == 'mac'
+    if not isMac then return 1 end
+    
+    local tempFile = LrPathUtils.child(LrPathUtils.getStandardFilePath('temp'), "lr_cpu_count.txt")
+    local cmd = "sysctl -n hw.ncpu > " .. string.format("%q", tempFile)
+    
+    local status = LrTasks.execute(cmd)
+    local count = 1
+    
     if status == 0 then
-        return tonumber(result) or 1
+        local content = LrFileUtils.readFile(tempFile)
+        if content then
+            count = tonumber(content:match("%d+")) or 1
+        end
+        LrFileUtils.delete(tempFile)
     end
-    return 1
+    
+    logger:info("Detected CPU Core Count: " .. tostring(count))
+    return count
 end
 
 local function main()
