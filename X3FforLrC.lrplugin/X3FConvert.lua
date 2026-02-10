@@ -58,6 +58,11 @@ local function main()
         local coreCount = getCpuCoreCount()
         local recommendedConcurrency = math.max(1, math.floor(coreCount / 2))
         
+        local concurrencyItems = {}
+        for i = 1, coreCount do
+            table.insert(concurrencyItems, { title = tostring(i), value = i })
+        end
+
         local f = LrView.osFactory()
         local properties = LrBinding.makePropertyTable(context)
         properties.useParallel = true
@@ -74,11 +79,9 @@ local function main()
             },
             f:row {
                 f:static_text { title = "Concurrent Jobs:", width = LrView.share "label_width" },
-                f:edit_number {
+                f:popup_menu {
                     value = LrView.bind "concurrency",
-                    min = 1,
-                    max = coreCount,
-                    precision = 0,
+                    items = concurrencyItems,
                     enabled = LrView.bind "useParallel",
                 },
                 f:static_text { title = "(Max: " .. coreCount .. ", Recommended: " .. recommendedConcurrency .. ")" },
