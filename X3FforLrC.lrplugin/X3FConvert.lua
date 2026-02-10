@@ -6,6 +6,7 @@ local LrFileUtils = import 'LrFileUtils'
 local LrLogger = import 'LrLogger'
 local LrView = import 'LrView'
 local LrBinding = import 'LrBinding'
+local LrFunctionContext = import 'LrFunctionContext'
 local LrProgressScope = import 'LrProgressScope'
 
 local logger = LrLogger('X3FforLrC')
@@ -29,6 +30,8 @@ end
 
 local function main()
     LrTasks.startAsyncTask(function()
+    LrFunctionContext.callWithContext('X3FConvert', function(context)
+        logger:info("Starting X3F Conversion process")
         local catalog = LrApplication.activeCatalog()
         local binary = getExtractionBinary()
 
@@ -56,7 +59,7 @@ local function main()
         local recommendedConcurrency = math.max(1, math.floor(coreCount / 2))
         
         local f = LrView.osFactory()
-        local properties = LrBinding.makePropertyTable()
+        local properties = LrBinding.makePropertyTable(context)
         properties.useParallel = true
         properties.concurrency = recommendedConcurrency
         properties.outputDir = sourceDir
@@ -241,12 +244,19 @@ local function main()
         progressScope:done()
         local summary = string.format("Processed %d files.\nConverted: %d", #x3fFiles, convertedCount)
         if #errors > 0 then
-            summary = summary .. "\nFailed: " .. #errors
+            local logPath = ""
+            if MAC_ENV then
+                logPath = LrPathUtils.child(LrPathUtils.getStandardFilePath('home'), "Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log")
+            else
+                logPath = LrPathUtils.child(LrPathUtils.getStandardFilePath('documents'), "X3FforLrC.log")
+            end
+            summary = summary .. string.format("\nFailed: %d\n\nPlease check the log file at:\n%s", #errors, logPath)
         end
         
         if not progressScope:isCanceled() then
             LrDialogs.message("X3F Conversion Complete", summary)
         end
+    end)
     end)
 end
 
