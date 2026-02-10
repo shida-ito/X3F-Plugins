@@ -8,6 +8,7 @@ local LrView = import 'LrView'
 local LrBinding = import 'LrBinding'
 local LrFunctionContext = import 'LrFunctionContext'
 local LrProgressScope = import 'LrProgressScope'
+local LrDate = import 'LrDate'
 
 local logger = LrLogger('X3FforLrC')
 logger:enable("logfile") 
@@ -148,6 +149,7 @@ local function main()
         })
         progressScope:setPortionComplete(0, #x3fFiles)
 
+        local startTime = LrDate.currentTime()
         local convertedCount = 0
         local errors = {}
         local fileIndex = 1
@@ -273,8 +275,17 @@ local function main()
         end
 
         -- 5. Final Summary
+        local endTime = LrDate.currentTime()
+        local duration = endTime - startTime
+        local minutes = math.floor(duration / 60)
+        local seconds = math.floor(duration % 60)
+        local timeString = string.format("%d min %d sec", minutes, seconds)
+        if minutes == 0 then
+            timeString = string.format("%d sec", seconds)
+        end
+
         progressScope:done()
-        local summary = string.format("Processed %d files.\nConverted: %d", #x3fFiles, convertedCount)
+        local summary = string.format("Processed %d files.\nConverted: %d\nTotal Time: %s", #x3fFiles, convertedCount, timeString)
         if #errors > 0 then
             local logPath = ""
             if MAC_ENV then
@@ -282,7 +293,7 @@ local function main()
             else
                 logPath = LrPathUtils.child(LrPathUtils.getStandardFilePath('documents'), "X3FforLrC.log")
             end
-            summary = summary .. string.format("\nFailed: %d\n\nPlease check the log file at:\n%s", #errors, logPath)
+            summary = summary .. string.format("\n\nFailed: %d\n\nPlease check the log file at:\n%s", #errors, logPath)
         end
         
         if not progressScope:isCanceled() then
