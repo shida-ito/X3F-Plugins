@@ -80,9 +80,10 @@ local function main()
         local properties = LrBinding.makePropertyTable(context)
         properties.useParallel = true
         properties.concurrency = recommendedConcurrency
-        properties.concurrency = recommendedConcurrency
         properties.outputDir = sourceDir
         properties.useLJPEG = true
+        properties.useDenoise = true
+        properties.recursive = false
 
         local c = f:column {
             spacing = f:control_spacing(),
@@ -104,6 +105,14 @@ local function main()
             f:row {
                 f:static_text { title = "Compression:", width = LrView.share "label_width" },
                 f:checkbox { title = "Use Lossless JPEG (Smaller DNGs)", value = LrView.bind "useLJPEG" },
+            },
+            f:row {
+                f:static_text { title = "Denoise:", width = LrView.share "label_width" },
+                f:checkbox { title = "Apply denoise during conversion", value = LrView.bind "useDenoise" },
+            },
+            f:row {
+                f:static_text { title = "Subfolders:", width = LrView.share "label_width" },
+                f:checkbox { title = "Include subfolders (recursive)", value = LrView.bind "recursive" },
             },
             f:separator { fill_horizontal = 1 },
             f:row {
@@ -135,15 +144,24 @@ local function main()
 
         local outputDir = properties.outputDir
         local useLJPEG = properties.useLJPEG
+        local useDenoise = properties.useDenoise
+        local recursive = properties.recursive
         local maxConcurrency = properties.useParallel and properties.concurrency or 1
 
         -- 3. Collect Files
         local x3fFiles = {}
-        for file in LrFileUtils.directoryEntries(sourceDir) do
-            if string.lower(LrPathUtils.extension(file)) == "x3f" then
-                table.insert(x3fFiles, file)
+        local function collectFiles(dir)
+            for file in LrFileUtils.directoryEntries(dir) do
+                if LrFileUtils.exists(file) == "file" then
+                    if string.lower(LrPathUtils.extension(file) or "") == "x3f" then
+                        table.insert(x3fFiles, file)
+                    end
+                elseif recursive and LrFileUtils.exists(file) == "directory" then
+                    collectFiles(file)
+                end
             end
         end
+        collectFiles(sourceDir)
 
         if #x3fFiles == 0 then
             LrDialogs.message("Info", "No .x3f files found in selected folder.")
@@ -191,7 +209,8 @@ local function main()
                 success = true
             else
                 local compressFlag = useLJPEG and " -ljpeg" or ""
-                local cmd = string.format('"%s" -dng%s -o "%s" "%s"', binary, compressFlag, outputDir, x3fPath)
+                local denoiseFlag = useDenoise and "" or " -no-denoise"
+                local cmd = string.format('"%s" -dng%s%s -o "%s" "%s"', binary, compressFlag, denoiseFlag, outputDir, x3fPath)
                 logger:info("Executing: " .. cmd)
                 local retval = LrTasks.execute(cmd)
                 
