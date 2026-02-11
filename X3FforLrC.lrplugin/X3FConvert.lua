@@ -83,7 +83,6 @@ local function main()
         properties.outputDir = sourceDir
         properties.useLJPEG = true
         properties.useDenoise = true
-        properties.recursive = false
 
         local c = f:column {
             spacing = f:control_spacing(),
@@ -109,10 +108,6 @@ local function main()
             f:row {
                 f:static_text { title = "Denoise:", width = LrView.share "label_width" },
                 f:checkbox { title = "Apply denoise during conversion", value = LrView.bind "useDenoise" },
-            },
-            f:row {
-                f:static_text { title = "Subfolders:", width = LrView.share "label_width" },
-                f:checkbox { title = "Include subfolders (recursive)", value = LrView.bind "recursive" },
             },
             f:separator { fill_horizontal = 1 },
             f:row {
@@ -145,7 +140,7 @@ local function main()
         local outputDir = properties.outputDir
         local useLJPEG = properties.useLJPEG
         local useDenoise = properties.useDenoise
-        local recursive = properties.recursive
+        local recursive = true
         local maxConcurrency = properties.useParallel and properties.concurrency or 1
 
         -- 3. Collect Files
