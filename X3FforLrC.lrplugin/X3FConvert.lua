@@ -80,7 +80,9 @@ local function main()
         local properties = LrBinding.makePropertyTable(context)
         properties.useParallel = true
         properties.concurrency = recommendedConcurrency
+        properties.concurrency = recommendedConcurrency
         properties.outputDir = sourceDir
+        properties.useLJPEG = true
 
         local c = f:column {
             spacing = f:control_spacing(),
@@ -98,6 +100,10 @@ local function main()
                     enabled = LrView.bind "useParallel",
                 },
                 f:static_text { title = "(Max: " .. coreCount .. ", Recommended: " .. recommendedConcurrency .. ")" },
+            },
+            f:row {
+                f:static_text { title = "Compression:", width = LrView.share "label_width" },
+                f:checkbox { title = "Use Lossless JPEG (Smaller DNGs)", value = LrView.bind "useLJPEG" },
             },
             f:separator { fill_horizontal = 1 },
             f:row {
@@ -128,6 +134,7 @@ local function main()
         if dialogResult == "cancel" then return end
 
         local outputDir = properties.outputDir
+        local useLJPEG = properties.useLJPEG
         local maxConcurrency = properties.useParallel and properties.concurrency or 1
 
         -- 3. Collect Files
@@ -183,7 +190,8 @@ local function main()
                 logger:info("DNG already exists for " .. filename)
                 success = true
             else
-                local cmd = string.format('"%s" -dng -o "%s" "%s"', binary, outputDir, x3fPath)
+                local compressFlag = useLJPEG and " -ljpeg" or ""
+                local cmd = string.format('"%s" -dng%s -o "%s" "%s"', binary, compressFlag, outputDir, x3fPath)
                 logger:info("Executing: " .. cmd)
                 local retval = LrTasks.execute(cmd)
                 

@@ -8,35 +8,33 @@
  */
 
 #include "x3f_output_dng.h"
-#include "x3f_process.h"
 #include "x3f_dngtags.h"
+#include "x3f_image.h"
+#include "x3f_ljpeg.h"
 #include "x3f_matrix.h"
 #include "x3f_meta.h"
-#include "x3f_image.h"
-#include "x3f_spatial_gain.h"
 #include "x3f_printf.h"
+#include "x3f_process.h"
+#include "x3f_spatial_gain.h"
 
+#include <assert.h>
+#include <fcntl.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <tiffio.h>
-#include <math.h>
 #include <string.h>
-#include <assert.h>
+#include <tiffio.h>
+#include <unistd.h>
 
-static void vec_double_to_float(double *a, float *b, int len)
-{
+static void vec_double_to_float(double *a, float *b, int len) {
   int i;
 
-  for (i=0; i<len; i++)
+  for (i = 0; i < len; i++)
     b[i] = a[i];
 }
 
-static int get_camf_rect_as_dngrect(x3f_t *x3f, char *name,
-				    x3f_area16_t *image, int rescale,
-				    uint32_t *rect)
-{
+static int get_camf_rect_as_dngrect(x3f_t *x3f, char *name, x3f_area16_t *image,
+                                    int rescale, uint32_t *rect) {
   uint32_t camf_rect[4];
 
   if (!x3f_get_camf_rect(x3f, name, image, rescale, camf_rect))
@@ -52,8 +50,7 @@ static int get_camf_rect_as_dngrect(x3f_t *x3f, char *name,
 }
 
 static int write_spatial_gain(x3f_t *x3f, x3f_area16_t *image, char *wb,
-			      TIFF *tiff)
-{
+                              TIFF *tiff) {
   x3f_spatial_gain_corr_t corr[MAXCORR];
   int corr_num;
   uint32_t active_area[4];
@@ -65,23 +62,24 @@ static int write_spatial_gain(x3f_t *x3f, x3f_area16_t *image, char *wb,
   dng_opcodelist_header_t *header;
   int i, j;
 
-  if (!get_camf_rect_as_dngrect(x3f, "ActiveImageArea", image, 1,
-				active_area))
+  if (!get_camf_rect_as_dngrect(x3f, "ActiveImageArea", image, 1, active_area))
     return 0;
 
   /* Spatial gain in X3F refers to the entire image, but OpcodeList2
      in DNG is appled after cropping to ActiveArea */
   originv = -(double)active_area[0] / (active_area[2] - active_area[0]);
   originh = -(double)active_area[1] / (active_area[3] - active_area[1]);
-  scalev =   (double)image->rows    / (active_area[2] - active_area[0]);
-  scaleh =   (double)image->columns / (active_area[3] - active_area[1]);
+  scalev = (double)image->rows / (active_area[2] - active_area[0]);
+  scaleh = (double)image->columns / (active_area[3] - active_area[1]);
 
   corr_num = x3f_get_spatial_gain(x3f, wb, corr);
-  if (corr_num == 0) return 0;
+  if (corr_num == 0)
+    return 0;
 
-  for (i=0; i<corr_num; i++) {
-    opcode_size[i] = sizeof(dng_opcode_GainMap_t) +
-      corr[i].rows*corr[i].cols*corr[i].channels*sizeof(float);
+  for (i = 0; i < corr_num; i++) {
+    opcode_size[i] =
+        sizeof(dng_opcode_GainMap_t) +
+        corr[i].rows * corr[i].cols * corr[i].channels * sizeof(float);
     opcode_list_size += opcode_size[i];
   }
 
@@ -89,8 +87,7 @@ static int write_spatial_gain(x3f_t *x3f, x3f_area16_t *image, char *wb,
   header = (dng_opcodelist_header_t *)opcode_list;
   PUT_BIG_32(header->count, corr_num);
 
-  for (p = opcode_list + sizeof(dng_opcodelist_header_t), i=0;
-       i<corr_num;
+  for (p = opcode_list + sizeof(dng_opcodelist_header_t), i = 0; i < corr_num;
        p += opcode_size[i], i++) {
     dng_opcode_GainMap_t *gain_map = (dng_opcode_GainMap_t *)p;
     x3f_spatial_gain_corr_t *c = &corr[i];
@@ -99,7 +96,7 @@ static int write_spatial_gain(x3f_t *x3f, x3f_area16_t *image, char *wb,
     PUT_BIG_32(gain_map->header.ver, DNG_OPCODE_GAINMAP_VER);
     PUT_BIG_32(gain_map->header.flags, 0);
     PUT_BIG_32(gain_map->header.parsize,
-	       opcode_size[i] - sizeof(dng_opcode_header_t));
+               opcode_size[i] - sizeof(dng_opcode_header_t));
 
     PUT_BIG_32(gain_map->Top, c->rowoff);
     PUT_BIG_32(gain_map->Left, c->coloff);
@@ -111,13 +108,13 @@ static int write_spatial_gain(x3f_t *x3f, x3f_area16_t *image, char *wb,
     PUT_BIG_32(gain_map->ColPitch, c->colpitch);
     PUT_BIG_32(gain_map->MapPointsV, c->rows);
     PUT_BIG_32(gain_map->MapPointsH, c->cols);
-    PUT_BIG_64(gain_map->MapSpacingV, scalev/(c->rows-1));
-    PUT_BIG_64(gain_map->MapSpacingH, scaleh/(c->cols-1));
+    PUT_BIG_64(gain_map->MapSpacingV, scalev / (c->rows - 1));
+    PUT_BIG_64(gain_map->MapSpacingH, scaleh / (c->cols - 1));
     PUT_BIG_64(gain_map->MapOriginV, originv);
     PUT_BIG_64(gain_map->MapOriginH, originh);
     PUT_BIG_32(gain_map->MapPlanes, c->channels);
 
-    for (j=0; j<c->rows*c->cols*c->channels; j++)
+    for (j = 0; j < c->rows * c->cols * c->channels; j++)
       PUT_BIG_32(gain_map->MapGain[j], c->gain[j]);
   }
 
@@ -135,29 +132,26 @@ typedef struct {
 } camera_profile_t;
 
 /* TODO: more mixes should be defined */
-static double grayscale_mix_std[3] = {1.0/3.0, 1.0/3.0, 1.0/3.0};
+static double grayscale_mix_std[3] = {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0};
 static double grayscale_mix_red[3] = {2.0, -1.0, 0.0};
 static double grayscale_mix_blue[3] = {0.0, -1.0, 2.0};
 
-static int get_bmt_to_xyz_noconvert(x3f_t *x3f, char *wb, double *bmt_to_xyz)
-{
+static int get_bmt_to_xyz_noconvert(x3f_t *x3f, char *wb, double *bmt_to_xyz) {
   /* TODO: assuming working space to be Adobe RGB. Is that acceptable? */
   x3f_AdobeRGB_to_XYZ(bmt_to_xyz);
   return 1;
 }
 
 static const camera_profile_t camera_profiles[] = {
-  {"Default", x3f_get_bmt_to_xyz, NULL},
-  {"Grayscale", get_bmt_to_xyz_noconvert, grayscale_mix_std},
-  {"Grayscale (red filter)", get_bmt_to_xyz_noconvert, grayscale_mix_red},
-  {"Grayscale (blue filter)", get_bmt_to_xyz_noconvert, grayscale_mix_blue},
-  {"Unconverted", get_bmt_to_xyz_noconvert, NULL},
+    {"Default", x3f_get_bmt_to_xyz, NULL},
+    {"Grayscale", get_bmt_to_xyz_noconvert, grayscale_mix_std},
+    {"Grayscale (red filter)", get_bmt_to_xyz_noconvert, grayscale_mix_red},
+    {"Grayscale (blue filter)", get_bmt_to_xyz_noconvert, grayscale_mix_blue},
+    {"Unconverted", get_bmt_to_xyz_noconvert, NULL},
 };
 
 static int write_camera_profile(x3f_t *x3f, char *wb,
-				const camera_profile_t *profile,
-				TIFF *tiff)
-{
+                                const camera_profile_t *profile, TIFF *tiff) {
   double bmt_to_xyz[9], xyz_to_bmt[9], bmt_to_d50[9];
   float color_matrix1[9], forward_matrix1[9];
 
@@ -178,8 +172,7 @@ static int write_camera_profile(x3f_t *x3f, char *wb,
     x3f_3x3_3x3_mul(ones, grayscale_mix_mat, bmt_to_grayscale);
     x3f_3x3_diag(d50_xyz, d50_xyz_mat);
     x3f_3x3_3x3_mul(d50_xyz_mat, bmt_to_grayscale, bmt_to_d50);
-  }
-  else {
+  } else {
     double d65_to_d50[9];
 
     x3f_Bradford_D65_to_D50(d65_to_d50);
@@ -195,32 +188,32 @@ static int write_camera_profile(x3f_t *x3f, char *wb,
   return 1;
 }
 
-#if defined(_WIN32) || defined (_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
 /* tmpfile() is broken on Windows */
 #include <windows.h>
 
 #define tmpfile tmpfile_win
-static FILE *tmpfile_win(void)
-{
+static FILE *tmpfile_win(void) {
   char dir[MAX_PATH], file[MAX_PATH];
   HANDLE h;
 
-  if (!GetTempPath(MAX_PATH, dir)) return NULL;
-  if (!GetTempFileName(dir, "x3f", 0, file)) return NULL;
+  if (!GetTempPath(MAX_PATH, dir))
+    return NULL;
+  if (!GetTempFileName(dir, "x3f", 0, file))
+    return NULL;
 
   h = CreateFile(file, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
-		 FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, NULL);
-  if (h == INVALID_HANDLE_VALUE) return NULL;
+                 FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+  if (h == INVALID_HANDLE_VALUE)
+    return NULL;
 
   return fdopen(_open_osfhandle((intptr_t)h, O_RDWR | O_BINARY), "w+b");
 }
 #endif
 
 static x3f_return_t write_camera_profiles(x3f_t *x3f, char *wb,
-					  const camera_profile_t *profiles,
-					  int num,
-					  TIFF *tiff)
-{
+                                          const camera_profile_t *profiles,
+                                          int num, TIFF *tiff) {
   FILE *tiff_file;
   uint32_t *profile_offsets;
   int i;
@@ -229,14 +222,16 @@ static x3f_return_t write_camera_profiles(x3f_t *x3f, char *wb,
   if (!write_camera_profile(x3f, wb, &profiles[0], tiff))
     return X3F_ARGUMENT_ERROR;
   TIFFSetField(tiff, TIFFTAG_ASSHOTPROFILENAME, profiles[0].name);
-  if (num == 1) return X3F_OK;
+  if (num == 1)
+    return X3F_OK;
 
-  profile_offsets = alloca((num-1)*sizeof(uint32_t));
+  profile_offsets = alloca((num - 1) * sizeof(uint32_t));
 
   tiff_file = fdopen(dup(TIFFFileno(tiff)), "w+b");
-  if (!tiff_file) return X3F_OUTFILE_ERROR;
+  if (!tiff_file)
+    return X3F_OUTFILE_ERROR;
 
-  for (i=1; i < num; i++) {
+  for (i = 1; i < num; i++) {
     FILE *tmp;
     TIFF *tmp_tiff;
 #define BUFSIZE 1024
@@ -262,21 +257,21 @@ static x3f_return_t write_camera_profiles(x3f_t *x3f, char *wb,
     TIFFClose(tmp_tiff);
 
     fseek(tiff_file, 0, SEEK_END);
-    offset = (ftell(tiff_file)+1) & ~1; /* 2-byte alignment */
+    offset = (ftell(tiff_file) + 1) & ~1; /* 2-byte alignment */
     fseek(tiff_file, offset, SEEK_SET);
-    profile_offsets[i-1] = offset;
+    profile_offsets[i - 1] = offset;
 
-    fputs("MMCR", tiff_file);	/* DNG camera profile magic in big endian */
-    fseek(tmp, 4, SEEK_SET);	/* Skip over the standard TIFF magic */
+    fputs("MMCR", tiff_file); /* DNG camera profile magic in big endian */
+    fseek(tmp, 4, SEEK_SET);  /* Skip over the standard TIFF magic */
 
-    while((count = fread(buf, 1, BUFSIZE, tmp)))
+    while ((count = fread(buf, 1, BUFSIZE, tmp)))
       fwrite(buf, 1, count, tiff_file);
 
     fclose(tmp);
   }
 
   fclose(tiff_file);
-  TIFFSetField(tiff, TIFFTAG_EXTRACAMERAPROFILES, num-1, profile_offsets);
+  TIFFSetField(tiff, TIFFTAG_EXTRACAMERAPROFILES, num - 1, profile_offsets);
   return X3F_OK;
 }
 
@@ -287,14 +282,9 @@ static x3f_return_t write_camera_profiles(x3f_t *x3f, char *wb,
 #endif
 
 /* extern */
-x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f,
-				      char *outfilename,
-				      int fix_bad,
-				      int denoise,
-				      int apply_sgain,
-				      char *wb,
-				      int compress)
-{
+x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
+                                      int fix_bad, int denoise, int apply_sgain,
+                                      char *wb, int compress) {
   x3f_return_t ret;
   int fd = open(outfilename, O_RDWR | BINMODE | O_CREAT | O_TRUNC, 0444);
   TIFF *f_out;
@@ -310,22 +300,24 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f,
   x3f_area8_t preview;
   int row;
 
-  if (fd == -1) return X3F_OUTFILE_ERROR;
+  if (fd == -1)
+    return X3F_OUTFILE_ERROR;
   if (!(f_out = TIFFFdOpen(fd, outfilename, "w"))) {
     close(fd);
     return X3F_OUTFILE_ERROR;
   }
 
-  if (wb == NULL) wb = x3f_get_wb(x3f);
-  if (!x3f_get_image(x3f, &image, &ilevels, NONE, 0,
-		     fix_bad, denoise, apply_sgain, wb) ||
+  if (wb == NULL)
+    wb = x3f_get_wb(x3f);
+  if (!x3f_get_image(x3f, &image, &ilevels, NONE, 0, fix_bad, denoise,
+                     apply_sgain, wb) ||
       image.channels != 3) {
     x3f_printf(ERR, "Could not get image\n");
     TIFFClose(f_out);
     return X3F_ARGUMENT_ERROR;
   }
-  if (!x3f_get_preview(x3f, &image, &ilevels, SRGB,
-		       apply_sgain, wb, 300, &preview)) {
+  if (!x3f_get_preview(x3f, &image, &ilevels, SRGB, apply_sgain, wb, 300,
+                       &preview)) {
     x3f_printf(ERR, "Could not get preview\n");
     TIFFClose(f_out);
     free(image.buf);
@@ -344,18 +336,18 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f,
   TIFFSetField(f_out, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
   TIFFSetField(f_out, TIFFTAG_DNGVERSION, "\001\004\000\000");
   TIFFSetField(f_out, TIFFTAG_DNGBACKWARDVERSION,
-	       compress ? "\001\004\000\000" : "\001\003\000\000");
+               compress ? "\001\004\000\000" : "\001\003\000\000");
   TIFFSetField(f_out, TIFFTAG_SUBIFD, 1, sub_ifds);
 
   if (x3f_get_camf_float(x3f, "SensorISO", &sensor_iso) &&
       x3f_get_camf_float(x3f, "CaptureISO", &capture_iso)) {
-    double baseline_exposure = log2(capture_iso/sensor_iso);
+    double baseline_exposure = log2(capture_iso / sensor_iso);
     TIFFSetField(f_out, TIFFTAG_BASELINEEXPOSURE, baseline_exposure);
   }
 
-  ret = write_camera_profiles(x3f, wb, camera_profiles,
-			      sizeof(camera_profiles)/sizeof(camera_profile_t),
-			      f_out);
+  ret = write_camera_profiles(
+      x3f, wb, camera_profiles,
+      sizeof(camera_profiles) / sizeof(camera_profile_t), f_out);
   if (ret != X3F_OK) {
     x3f_printf(ERR, "Could not write camera profiles\n");
     TIFFClose(f_out);
@@ -388,20 +380,30 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f,
   vec_double_to_float(gain_inv_mat, camera_calibration1, 9);
   TIFFSetField(f_out, TIFFTAG_CAMERACALIBRATION1, 9, camera_calibration1);
 
-  for (row=0; row < preview.rows; row++)
-    TIFFWriteScanline(f_out, preview.data + preview.row_stride*row, row, 0);
+  for (row = 0; row < preview.rows; row++)
+    TIFFWriteScanline(f_out, preview.data + preview.row_stride * row, row, 0);
 
   TIFFWriteDirectory(f_out);
 
   TIFFSetField(f_out, TIFFTAG_SUBFILETYPE, 0);
   TIFFSetField(f_out, TIFFTAG_IMAGEWIDTH, image.columns);
   TIFFSetField(f_out, TIFFTAG_IMAGELENGTH, image.rows);
-  TIFFSetField(f_out, TIFFTAG_ROWSPERSTRIP, 32);
   TIFFSetField(f_out, TIFFTAG_SAMPLESPERPIXEL, 3);
   TIFFSetField(f_out, TIFFTAG_BITSPERSAMPLE, 16);
   TIFFSetField(f_out, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
-  TIFFSetField(f_out, TIFFTAG_COMPRESSION,
-	       compress ? COMPRESSION_ADOBE_DEFLATE : COMPRESSION_NONE);
+  TIFFSetField(f_out, TIFFTAG_SAMPLEFORMAT, SAMPLEFORMAT_UINT);
+
+  int compression = COMPRESSION_NONE;
+  if (compress == 1)
+    compression = COMPRESSION_ADOBE_DEFLATE;
+  if (compress == 2) {
+    compression = COMPRESSION_JPEG;
+    TIFFSetField(f_out, TIFFTAG_ROWSPERSTRIP, image.rows);
+  } else {
+    TIFFSetField(f_out, TIFFTAG_ROWSPERSTRIP, 32);
+  }
+
+  TIFFSetField(f_out, TIFFTAG_COMPRESSION, compression);
   TIFFSetField(f_out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_LINEARRAW);
   /* Prevent further chroma denoising in DNG processing software */
   TIFFSetField(f_out, TIFFTAG_CHROMABLURRADIUS, 0.0);
@@ -417,8 +419,22 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f,
   if (get_camf_rect_as_dngrect(x3f, "ActiveImageArea", &image, 1, active_area))
     TIFFSetField(f_out, TIFFTAG_ACTIVEAREA, active_area);
 
-  for (row=0; row < image.rows; row++)
-    TIFFWriteScanline(f_out, image.data + image.row_stride*row, row, 0);
+  if (compress == 2) {
+    uint8_t *ljpeg_buf = NULL;
+    size_t ljpeg_size = 0;
+    if (x3f_ljpeg_encode(image.data, image.columns, image.rows, 3,
+                         image.row_stride, &ljpeg_buf, &ljpeg_size) == 0) {
+      if (TIFFWriteRawStrip(f_out, 0, ljpeg_buf, ljpeg_size) < 0) {
+        x3f_printf(ERR, "Could not write LJPEG strip\n");
+      }
+      free(ljpeg_buf);
+    } else {
+      x3f_printf(ERR, "LJPEG encoding failed\n");
+    }
+  } else {
+    for (row = 0; row < image.rows; row++)
+      TIFFWriteScanline(f_out, image.data + image.row_stride * row, row, 0);
+  }
 
   TIFFWriteDirectory(f_out);
   TIFFClose(f_out);
