@@ -112,7 +112,7 @@ local function main()
             f:separator { fill_horizontal = 1 },
             f:row {
                 f:static_text { title = "Output Folder:", width = LrView.share "label_width" },
-                f:edit_field { value = LrView.bind "outputDir", fill_horizontal = 1 },
+                f:static_text { title = LrView.bind "outputDir", fill_horizontal = 1, truncation = "middle" },
                 f:push_button {
                     title = "Browse...",
                     action = function()
