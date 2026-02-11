@@ -1,99 +1,101 @@
 # X3F for Lightroom Classic (X3FforLrC)
 
-SIGMA Merrill / Quattro シリーズのX3Fファイルを、Adobe Lightroom Classicで扱えるDNG形式に一括変換するためのプラグインです。
-Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exiftool`（メタデータコピー）を内部で使用し、スムーズなワークフローを提供します。
+> **English** | [日本語](README_ja.md)
 
-## 特徴
-- Lightoom Classicの「プラグイン エクストラ (Plug-in Extras)」メニューから直接呼び出し可能
-- 指定したフォルダ内のX3Fファイルを一括でDNGに変換
-- **マルチプロセスによる高速変換**: CPUのマルチコアを活かした並列処理で、大量のファイルを高速に処理
-- **Lossless JPEG (LJPEG) 圧縮**: DNGファイルをロスレス圧縮し、画質を一切損なわずにファイルサイズを約60%に削減（デフォルトで有効）
-- **サブフォルダの自動再帰処理**: サブフォルダ内のX3Fファイルも自動的に検出して一括変換
-- **デノイズのオン/オフ切替**: 変換時のデノイズ処理を無効にして、現像ソフト側でノイズ処理を行うことも可能
-- **DNGの出力先フォルダを任意に選択可能**
-- `exiftool` を使用して、撮影日時・ISO感度・絞り・シャッタースピードなどのEXIF情報をDNGに自動コピー
-- **Merrillシリーズ（DP1M/DP2M/DP3M）特有のグリーンノイズ（右端の色被り）を修正するパッチを適用済み**
-- macOS用バイナリ（`x3f_extract` および `exiftool`）を同梱済みのため、別途ツールのインストールは不要
+A Lightroom Classic plugin for batch converting SIGMA Merrill / Quattro series X3F files into DNG format.
+It utilizes the `x3f_extract` tool (from the Kalpanika project) for DNG conversion and `exiftool` for metadata copying, providing a seamless workflow within Lightroom.
 
-## 動作環境
+## Features
+- Accessible directly from Lightroom Classic's "Plug-in Extras" menu.
+- Batch converts X3F files within a specified folder to DNG.
+- **High-speed conversion with multi-processing**: Utilizes multi-core CPUs for parallel processing of large numbers of files.
+- **Lossless JPEG (LJPEG) Compression**: Compresses DNG files losslessly, reducing file size by approximately 60% without any quality loss (Enabled by default).
+- **Automatic Recursive Subfolder Processing**: Automatically detects and converts X3F files in subfolders.
+- **Denoise Toggle**: Option to disable denoising during conversion to allow noise reduction in post-processing software.
+- **Custom Output Folder**: Select any destination folder for the converted DNG files.
+- Automatically copies EXIF data (shooting date, ISO, aperture, shutter speed, etc.) to DNG using `exiftool`.
+- **Green Noise Fix**: Applies a patch to correct the green noise (color cast on the right edge) specific to the Merrill series (DP1M/DP2M/DP3M).
+- macOS binaries (`x3f_extract` and `exiftool`) are included, so no separate installation is required.
+
+## System Requirements
 - **OS**: macOS (Apple Silicon / Intel)
-  - 同梱の `x3f_extract` は Apple Silicon (arm64) 環境での動作を確認しています。
+  - The included `x3f_extract` has been verified to work on Apple Silicon (arm64).
 - **Host App**: Adobe Lightroom Classic
 
-## インストール方法
-1. このリポジトリをダウンロード（またはClone）します。
-2. フォルダ内の `X3FforLrC.lrplugin` を任意の場所（例: `~/Documents/Plugins/`）に保存します。
-3. Lightroom Classic を起動し、メニューから **「ファイル」 > 「プラグインマネージャー」** を開きます。
-4. 左下の **「追加」** ボタンをクリックし、先ほど保存した `X3FforLrC.lrplugin` フォルダを選択します。
-5. プラグインがリストに追加され、正常に「有効」となっていることを確認して「完了」をクリックします。
+## Installation
+1. Download (or Clone) this repository.
+2. Save the `X3FforLrC.lrplugin` folder to any location (e.g., `~/Documents/Plugins/`).
+3. Launch Lightroom Classic and open **File > Plug-in Manager**.
+4. Click the **Add** button in the bottom left and select the `X3FforLrC.lrplugin` folder you saved.
+5. Confirm that the plugin is added to the list and status is "Enabled", then click "Done".
 
-## 初回実行時の注意（macOSのセキュリティ許可）
-macOSのセキュリティ制限により、同梱の実行用バイナリの実行がブロックされ、「開発元を確認できないため開けない」というダイアログが表示されることがあります。その場合は以下のいずれかの方法で実行を許可してください。
+## Note on First Run (macOS Security)
+Due to macOS security restrictions, the execution of the included binaries may be blocked, showing a dialog "Application cannot be opened because the developer cannot be verified". In such cases, please allow execution using one of the following methods:
 
-- **方法1: システム設定で許可する**
-  macOSの **「システム設定」 > 「プライバシーとセキュリティ」** を開き、画面下方の「セキュリティ」セクションにある **「このまま開く」** ボタンをクリックして実行を許可します。
-- **方法2: ターミナルで隔離設定を解除する**
-  ターミナルを開き、以下のコマンドを実行してプラグインフォルダ全体の拡張属性（隔離フラグ）を削除します：
+- **Method 1: Allow in System Settings**
+  Open **System Settings > Privacy & Security** on macOS, scroll down to the "Security" section, and click the **Open Anyway** button to allow execution.
+- **Method 2: Remove Quarantine Attribute via Terminal**
+  Open Terminal and run the following command to remove the extended attributes (quarantine flag) from the plugin folder:
   ```bash
   xattr -cr /path/to/X3FforLrC.lrplugin
   ```
 
-## 使い方
-1. Lightroom Classic の「ライブラリ」モジュールを開きます。
-2. メニューバーの **「ファイル」 > 「プラグイン エクストラ」 > 「Convert X3F (Kalpanika)」** を選択します。
-3. ファイル選択ダイアログが表示されるので、**X3Fファイルが保存されているフォルダ** を選択します。
-4. **変換設定（X3F Conversion Settings）** ダイアログが表示されます。
-   - **Parallel Processing**: 並列処理を行う場合はチェックを入れます。
-   - **Concurrent Jobs**: 同時に実行するプロセス数を選択します（CPUコア数に応じて自動的に推奨値が設定されます）。
-   - **Compression**: 「Use Lossless JPEG」にチェックを入れると、DNGをロスレス圧縮します（デフォルトで有効）。画質に影響はなく、ファイルサイズが大幅に削減されます。
-   - **Denoise**: 変換時のデノイズ処理のオン/オフを切り替えます（デフォルトで有効）。Lightroom等でノイズ処理を行いたい場合はOFFにしてください。
-   - **Output Folder**: DNGファイルの保存先を選択します。
-5. 「OK」をクリックすると、自動的に変換処理が開始されます。
-   - 変換の進捗は左上のプログレスバーに表示されます。
-   - 変換済みのDNGファイルが既に存在する場合は、処理をスキップします。
-   - 変換完了後、DNGファイルにEXIF情報がコピーされます。
-   - 変換完了後、合計の処理時間が表示されます。
-6. 処理が完了するとダイアログが表示されます。生成されたDNGファイルをLightroomに読み込んで編集を行ってください。
+## Usage
+1. Open the "Library" module in Lightroom Classic.
+2. Select **File > Plug-in Extras > Convert X3F (Kalpanika)** from the menu bar.
+3. A file selection dialog will appear. Select the **folder containing your X3F files**.
+4. The **X3F Conversion Settings** dialog will appear.
+   - **Parallel Processing**: Check to enable parallel processing.
+   - **Concurrent Jobs**: Select the number of simultaneous processes (recommended value is set automatically based on CPU cores).
+   - **Compression**: Check "Use Lossless JPEG" to compress DNGs losslessly (Default: Enabled). Reduces file size significantly with no impact on image quality.
+   - **Denoise**: Toggle denoise processing during conversion (Default: Enabled). Uncheck if you prefer to handle noise reduction in Lightroom or other software.
+   - **Output Folder**: Select the destination folder for the DNG files.
+5. Click "OK" to start the conversion process automatically.
+   - Progress is shown in the progress bar at the top left.
+   - If converted DNG files already exist, processing for those files is skipped.
+   - After conversion, EXIF data is copied to the DNG files.
+   - Total processing time is displayed upon completion.
+6. A dialog appears when processing is complete. Import the generated DNG files into Lightroom for editing.
 
 > [!IMPORTANT]
-> **SDカード内での直接変換について**
-> SDカードから直接読み込んで変換を行う場合、SDカード自体の読み書き速度（スペック）がボトルネックとなり、並列数を増やしても変換速度が向上しない、あるいは逆に低下する場合があります。高速な処理を求める場合は、一旦PCの内蔵SS等の高速なストレージにコピーしてから実行することをお勧めします。
+> **Converting directly from SD Cards**
+> When converting directly from an SD card, the read/write speed of the card itself becomes a bottleneck. Increasing parallelism may not improve speed or could even slow it down. for high-speed processing, it is recommended to copy files to a fast storage device like an internal SSD before execution.
 
-## ⚠️ DNGプレビュー表示に関する注意（macOSの制限）
+## ⚠️ Note on DNG Preview (macOS Limitation)
 
-変換されたDNGファイルを **macOSの「プレビュー」や「クイックルック」で表示すると、画像全体が赤っぽく表示される** ことがありますが、これは **macOSの仕様による制限** であり、変換データ自体の問題ではありません。
+When viewing converted DNG files in **macOS Preview or Quick Look, the entire image may appear reddish**. This is a **limitation of macOS** and not an issue with the converted data itself.
 
-- **原因**: macOSの標準RAWエンジンがSigma FoveonセンサーのRAWデータに対応していないため、RAWデータを誤った色で表示してしまいます。
-- **対処法**: DNGファイルの閲覧・編集には **Adobe Lightroom Classic** 等の対応ソフトをご利用ください。正常な色で読み込み・編集が可能です。
+- **Cause**: The standard macOS RAW engine does not support the RAW data from Sigma Foveon sensors, resulting in incorrect color rendering.
+- **Solution**: Please use **Adobe Lightroom Classic** or other compatible software to view and edit DNG files. They will be imported and edited with correct colors.
 
-## 開発者向け情報
+## For Developers
 
-### バンドルについて
-本リポジトリには `exiftool` の実行ファイルだけでなく、必要なPerlライブラリ（`lib` フォルダ）も同梱しています。
-これにより、Perlがインストールされている環境であれば、追加の依存関係なしに `exiftool` が動作します。
-万が一動作しない場合は、システムにインストールされた `/usr/local/bin/exiftool` をフォールバックとして使用します。
+### About the Bundle
+This repository includes not only the `exiftool` executable but also the necessary Perl libraries (`lib` folder).
+This ensures `exiftool` works without additional dependencies in environments where Perl is installed.
+If it fails to run, it will fallback to using the system-installed `/usr/local/bin/exiftool`.
 
-### x3f_extract のビルド
-`x3f_source/` ディレクトリで `make` を実行すると `x3f_extract` をビルドできます。
-LJPEG圧縮は `x3f_source/src/x3f_ljpeg.c` に実装されており、コマンドラインからは `-ljpeg` オプションで利用可能です。
+### Building x3f_extract
+You can build `x3f_extract` by running `make` in the `x3f_source/` directory.
+LJPEG compression is implemented in `x3f_source/src/x3f_ljpeg.c` and is available via the `-ljpeg` command line option.
 
 ```bash
-# ビルド
+# Build
 cd x3f_source && make
 
-# コマンドラインからの使用例
+# Command line usage example
 ./bin/osx-x86_64/x3f_extract -dng -ljpeg -o /output/dir input.X3F
 ```
 
-## トラブルシューティング
-- **エラーが発生する場合**:
-  - ダイアログに表示されるパス（通常は `~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log`）のログファイルを確認してください。
-  - 外部ドライブ上のファイルを変換する場合、ドライブのアクセス権限を確認してください。
+## Troubleshooting
+- **If errors occur**:
+  - Check the log file at the path shown in the dialog (usually `~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log`).
+  - If processing files on an external drive, check the drive's access permissions.
 
-## ライセンスとクレジット
-本プラグイン自体は **MIT ライセンス** の下で提供されています。詳細は `LICENSE` ファイルをご確認ください。
+## License and Credits
+This plugin itself is provided under the **MIT License**. See the `LICENSE` file for details.
 
-本プラグインは、以下の優れたオープンソース・ソフトウェアを同梱・使用しています。各ツールのライセンス条項に基づき再配布を行っています。
+This plugin bundles and uses the following excellent open-source software. They are redistributed under their respective license terms.
 
 ### x3f_extract (Kalpanika)
 - **Project**: [https://github.com/kalpanika/x3f](https://github.com/kalpanika/x3f)
@@ -105,8 +107,8 @@ cd x3f_source && make
 - **License**: Perl Artistic License / GNU GPL
 - **Copyright**: (c) 2003-2025, Phil Harvey
 
-## メンテナンスと免責
-本プロジェクトは、個人の趣味として作成・公開されたものです。
-**機能追加の要望、バグ報告、Pull Request等は受け付けておりません**ので、あらかじめご了承ください。
-ソースコードはMITライセンスの下で公開されていますので、必要に応じてForkしてご自由にお使いください。
-本ソフトウェアの使用により生じたいかなる損害についても、作者は責任を負いません。
+## Maintenance and Disclaimer
+This project is created and published as a personal hobby.
+**Requests for new features, bug reports, and Pull Requests are not accepted.** Please understand this in advance.
+The source code is released under the MIT License, so please feel free to Fork and use it as needed.
+The author assumes no responsibility for any damages arising from the use of this software.
