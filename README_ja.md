@@ -20,7 +20,7 @@ Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exift
 ## 動作環境
 - **OS**: macOS (Apple Silicon / Intel)
   - 同梱の `x3f_extract` は Apple Silicon (arm64) 環境での動作を確認しています。
-- **Host App**: Adobe Lightroom Classic
+- **対応ソフト**: Adobe Lightroom Classic
 
 ## インストール方法
 1. このリポジトリをダウンロード（またはClone）します。
