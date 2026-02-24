@@ -52,8 +52,6 @@ The installation is automated using a script that places everything in the corre
    ```
 2. Open Capture One and go to **"Scripts" > "Update Scripts Menu"**.
 
-*Note: If you have an old `.c1plugin` version in your `Plug-ins` folder, `install_fix.sh` will automatically remove it to avoid conflicts.*
-
 ### 2. How to Use
 1. Select **Scripts > X3F Converter** from the menu bar.
 2. Select the **folder containing your X3F files**.
