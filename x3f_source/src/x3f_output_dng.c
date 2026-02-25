@@ -284,7 +284,8 @@ static x3f_return_t write_camera_profiles(x3f_t *x3f, char *wb,
 /* extern */
 x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
                                       int fix_bad, int denoise, int apply_sgain,
-                                      char *wb, int compress) {
+                                      char *wb, int compress,
+                                      int normalize_wl) {
   x3f_return_t ret;
   int fd = open(outfilename, O_RDWR | BINMODE | O_CREAT | O_TRUNC, 0444);
   TIFF *f_out;
@@ -408,9 +409,22 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
   /* Prevent further chroma denoising in DNG processing software */
   TIFFSetField(f_out, TIFFTAG_CHROMABLURRADIUS, 0.0);
 
-  vec_double_to_float(ilevels.black, black_level, 3);
-  TIFFSetField(f_out, TIFFTAG_BLACKLEVEL, 3, black_level);
-  TIFFSetField(f_out, TIFFTAG_WHITELEVEL, 3, ilevels.white);
+  if (normalize_wl) {
+    /* Normalize per-channel white levels to a uniform value.
+     * Scale each channel from [black[c], white[c]] to [0, white[0]].
+     * This makes all channels reach the same maximum, ensuring
+     * highlights render as neutral white in raw converters. */
+    float black_zero[3] = {0.0f, 0.0f, 0.0f};
+    uint32_t white_uniform[3];
+    white_uniform[0] = white_uniform[1] = white_uniform[2] =
+        (uint32_t)ilevels.white[0];
+    TIFFSetField(f_out, TIFFTAG_BLACKLEVEL, 3, black_zero);
+    TIFFSetField(f_out, TIFFTAG_WHITELEVEL, 3, white_uniform);
+  } else {
+    vec_double_to_float(ilevels.black, black_level, 3);
+    TIFFSetField(f_out, TIFFTAG_BLACKLEVEL, 3, black_level);
+    TIFFSetField(f_out, TIFFTAG_WHITELEVEL, 3, ilevels.white);
+  }
 
   if (apply_sgain)
     if (!write_spatial_gain(x3f, &image, wb, f_out))
@@ -419,10 +433,44 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
   if (get_camf_rect_as_dngrect(x3f, "ActiveImageArea", &image, 1, active_area))
     TIFFSetField(f_out, TIFFTAG_ACTIVEAREA, active_area);
 
+  /* If normalize_wl, scale pixel data: each channel from
+   * [black[c], white[c]] to [0, white[0]]. */
+  uint16_t *norm_buf = NULL;
+  uint16_t *write_buf = image.data;
+  if (normalize_wl) {
+    int col, c;
+    double wl0 = (double)ilevels.white[0];
+    norm_buf = malloc((size_t)image.rows * image.row_stride * sizeof(uint16_t));
+    if (!norm_buf) {
+      x3f_printf(ERR, "Could not allocate normalization buffer\n");
+      TIFFClose(f_out);
+      free(image.buf);
+      free(preview.buf);
+      return X3F_OUTFILE_ERROR;
+    }
+    for (row = 0; row < (int)image.rows; row++) {
+      uint16_t *src = image.data + image.row_stride * row;
+      uint16_t *dst = norm_buf + image.row_stride * row;
+      for (col = 0; col < (int)image.columns; col++) {
+        for (c = 0; c < 3; c++) {
+          double bl = ilevels.black[c];
+          double wl = (double)ilevels.white[c];
+          double v = ((double)src[col * 3 + c] - bl) / (wl - bl) * wl0;
+          if (v < 0.0)
+            v = 0.0;
+          if (v > wl0)
+            v = wl0;
+          dst[col * 3 + c] = (uint16_t)(v + 0.5);
+        }
+      }
+    }
+    write_buf = norm_buf;
+  }
+
   if (compress == 2) {
     uint8_t *ljpeg_buf = NULL;
     size_t ljpeg_size = 0;
-    if (x3f_ljpeg_encode(image.data, image.columns, image.rows, 3,
+    if (x3f_ljpeg_encode(write_buf, image.columns, image.rows, 3,
                          image.row_stride, &ljpeg_buf, &ljpeg_size) == 0) {
       if (TIFFWriteRawStrip(f_out, 0, ljpeg_buf, ljpeg_size) < 0) {
         x3f_printf(ERR, "Could not write LJPEG strip\n");
@@ -432,10 +480,11 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
       x3f_printf(ERR, "LJPEG encoding failed\n");
     }
   } else {
-    for (row = 0; row < image.rows; row++)
-      TIFFWriteScanline(f_out, image.data + image.row_stride * row, row, 0);
+    for (row = 0; row < (int)image.rows; row++)
+      TIFFWriteScanline(f_out, write_buf + image.row_stride * row, row, 0);
   }
-
+  if (norm_buf)
+    free(norm_buf);
   TIFFWriteDirectory(f_out);
   TIFFClose(f_out);
   free(image.buf);

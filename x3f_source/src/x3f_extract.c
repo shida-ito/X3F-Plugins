@@ -71,6 +71,8 @@ static void usage(char *progname) {
           "   -wb <WB>        Select white balance preset\n"
           "   -compress       Enable ZIP compression for DNG and TIFF output\n"
           "   -ljpeg          Enable LJPEG compression for DNG output\n"
+          "   -normalize-wl   Normalize per-channel white levels (fixes "
+          "Capture One highlight clipping)\n"
           "   -ocl            Use OpenCL\n"
           "\n"
           "STRANGE STUFF\n"
@@ -177,6 +179,7 @@ int main(int argc, char *argv[]) {
   int log_hist = 0;
   char *wb = NULL;
   int compress = 0;
+  int normalize_wl = 0;
   int use_opencl = 0;
   char *outdir = NULL;
   x3f_return_t ret;
@@ -251,6 +254,8 @@ int main(int argc, char *argv[]) {
       compress = 1;
     else if (!strcmp(argv[i], "-ljpeg"))
       compress = 2;
+    else if (!strcmp(argv[i], "-normalize-wl"))
+      normalize_wl = 1;
     else if (!strcmp(argv[i], "-ocl"))
       use_opencl = 1;
 
@@ -393,7 +398,7 @@ int main(int argc, char *argv[]) {
     case DNG:
       x3f_printf(INFO, "Dump RAW as DNG to %s\n", outfile);
       ret_dump = x3f_dump_raw_data_as_dng(x3f, tmpfile, fix_bad, denoise, sgain,
-                                          wb, compress);
+                                          wb, compress, normalize_wl);
       break;
     case PPMP3:
     case PPMP6:
