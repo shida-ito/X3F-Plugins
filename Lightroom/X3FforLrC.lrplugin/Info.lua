@@ -2,7 +2,7 @@ return {
     LrSdkVersion = 6.0,
     LrToolkitIdentifier = 'com.shida_ito.x3fforlrc',
     LrPluginName = 'X3F for Lightroom Classic (X3FforLrC)',
-    LrPluginInfoUrl = 'https://github.com/kalpanika/x3f',
+    LrPluginInfoUrl = 'https://github.com/shida-ito/X3F-Plugins',
 
     LrExportMenuItems = {
         title = "Convert X3F (Kalpanika)",

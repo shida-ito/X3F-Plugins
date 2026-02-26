@@ -83,6 +83,7 @@ local function main()
         properties.outputDir = sourceDir
         properties.useLJPEG = true
         properties.useDenoise = true
+        properties.useNormalizeWL = false
 
         local c = f:column {
             spacing = f:control_spacing(),
@@ -108,6 +109,10 @@ local function main()
             f:row {
                 f:static_text { title = "Denoise:", width = LrView.share "label_width" },
                 f:checkbox { title = "Apply denoise during conversion", value = LrView.bind "useDenoise" },
+            },
+            f:row {
+                f:static_text { title = "Normalize WL:", width = LrView.share "label_width" },
+                f:checkbox { title = "Normalize white levels (fixes Capture One highlights)", value = LrView.bind "useNormalizeWL" },
             },
             f:separator { fill_horizontal = 1 },
             f:row {
@@ -140,7 +145,7 @@ local function main()
         local outputDir = properties.outputDir
         local useLJPEG = properties.useLJPEG
         local useDenoise = properties.useDenoise
-        local recursive = true
+        local useNormalizeWL = properties.useNormalizeWL
         local maxConcurrency = properties.useParallel and properties.concurrency or 1
 
         -- 3. Collect Files
@@ -151,7 +156,7 @@ local function main()
                     if string.lower(LrPathUtils.extension(file) or "") == "x3f" then
                         table.insert(x3fFiles, file)
                     end
-                elseif recursive and LrFileUtils.exists(file) == "directory" then
+                elseif LrFileUtils.exists(file) == "directory" then
                     collectFiles(file)
                 end
             end
@@ -196,7 +201,12 @@ local function main()
         local function processOneFile(x3fPath)
             local filename = LrPathUtils.leafName(x3fPath)
             local dngFilename = LrPathUtils.replaceExtension(filename, "dng")
-            local dngPath = LrPathUtils.child(outputDir, dngFilename)
+            -- If outputDir matches sourceDir, place DNG next to X3F (preserve subfolder structure)
+            local targetDir = outputDir
+            if outputDir == sourceDir then
+                targetDir = LrPathUtils.parent(x3fPath)
+            end
+            local dngPath = LrPathUtils.child(targetDir, dngFilename)
             local success = false
 
             if LrFileUtils.exists(dngPath) then
@@ -205,13 +215,14 @@ local function main()
             else
                 local compressFlag = useLJPEG and " -ljpeg" or ""
                 local denoiseFlag = useDenoise and "" or " -no-denoise"
-                local cmd = string.format('"%s" -dng%s%s -o "%s" "%s"', binary, compressFlag, denoiseFlag, outputDir, x3fPath)
+                local normalizeWLFlag = useNormalizeWL and " -normalize-wl" or ""
+                local cmd = string.format('%s -dng%s%s%s -o %s %s', string.format("%q", binary), compressFlag, denoiseFlag, normalizeWLFlag, string.format("%q", targetDir), string.format("%q", x3fPath))
                 logger:info("Executing: " .. cmd)
                 local retval = LrTasks.execute(cmd)
-                
+
                 if retval == 0 then
-                    local rawOutput = LrPathUtils.child(outputDir, filename .. ".dng")
-                    local rawOutputUpper = LrPathUtils.child(outputDir, filename .. ".DNG")
+                    local rawOutput = LrPathUtils.child(targetDir, filename .. ".dng")
+                    local rawOutputUpper = LrPathUtils.child(targetDir, filename .. ".DNG")
 
                     local function waitForFile(path)
                         for attempt = 1, 30 do -- Up to 3 seconds with 0.1s steps
@@ -239,11 +250,17 @@ local function main()
                             local exiftoolPath = LrPathUtils.child(_PLUGIN.path, "bin")
                             exiftoolPath = LrPathUtils.child(exiftoolPath, "exiftool")
                             local exiftoolCmd
+                            local exifTags = " -EXIF:DateTimeOriginal -EXIF:CreateDate -EXIF:ModifyDate" ..
+                                " -EXIF:ISO -EXIF:FNumber -EXIF:ExposureTime" ..
+                                " -EXIF:ShutterSpeedValue -EXIF:ApertureValue -EXIF:FocalLength" ..
+                                " -EXIF:Make -EXIF:Model -EXIF:LensModel" ..
+                                " -EXIF:ExposureProgram -EXIF:MeteringMode -EXIF:Flash" ..
+                                " -EXIF:ExposureBiasValue -GPS:all"
                             if LrFileUtils.exists(exiftoolPath) then
                                 if MAC_ENV then LrTasks.execute("chmod +x " .. string.format("%q", exiftoolPath)) end
-                                exiftoolCmd = string.format('"%s" -overwrite_original -tagsfromfile "%s" -all:all "%s"', exiftoolPath, x3fPath, dngPath)
+                                exiftoolCmd = string.format('%s -overwrite_original -tagsfromfile %s%s %s', string.format("%q", exiftoolPath), string.format("%q", x3fPath), exifTags, string.format("%q", dngPath))
                             else
-                                exiftoolCmd = string.format('exiftool -overwrite_original -tagsfromfile "%s" -all:all "%s"', x3fPath, dngPath)
+                                exiftoolCmd = string.format('exiftool -overwrite_original -tagsfromfile %s%s %s', string.format("%q", x3fPath), exifTags, string.format("%q", dngPath))
                             end
                             LrTasks.execute(exiftoolCmd)
                         end

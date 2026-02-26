@@ -416,8 +416,11 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
      * highlights render as neutral white in raw converters. */
     float black_zero[3] = {0.0f, 0.0f, 0.0f};
     uint32_t white_uniform[3];
+    /* Set WL one above max pixel value: pixels reach at most white[0],
+     * so white[0]+1 ensures no channel is ever flagged as blown by
+     * Capture One's highlight recovery (which caused B=0 artifacts). */
     white_uniform[0] = white_uniform[1] = white_uniform[2] =
-        (uint32_t)ilevels.white[0];
+        (uint32_t)ilevels.white[0] + 1;
     TIFFSetField(f_out, TIFFTAG_BLACKLEVEL, 3, black_zero);
     TIFFSetField(f_out, TIFFTAG_WHITELEVEL, 3, white_uniform);
   } else {
