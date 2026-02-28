@@ -83,7 +83,6 @@ local function main()
         properties.outputDir = sourceDir
         properties.useLJPEG = true
         properties.useDenoise = true
-        properties.useNormalizeWL = false
 
         local c = f:column {
             spacing = f:control_spacing(),
@@ -109,10 +108,6 @@ local function main()
             f:row {
                 f:static_text { title = "Denoise:", width = LrView.share "label_width" },
                 f:checkbox { title = "Apply denoise during conversion", value = LrView.bind "useDenoise" },
-            },
-            f:row {
-                f:static_text { title = "Normalize WL:", width = LrView.share "label_width" },
-                f:checkbox { title = "Normalize WhiteLevel (fixes Capture One highlight yellow)", value = LrView.bind "useNormalizeWL" },
             },
             f:separator { fill_horizontal = 1 },
             f:row {
@@ -145,7 +140,6 @@ local function main()
         local outputDir = properties.outputDir
         local useLJPEG = properties.useLJPEG
         local useDenoise = properties.useDenoise
-        local useNormalizeWL = properties.useNormalizeWL
         local recursive = true
         local maxConcurrency = properties.useParallel and properties.concurrency or 1
 
@@ -211,8 +205,7 @@ local function main()
             else
                 local compressFlag = useLJPEG and " -ljpeg" or ""
                 local denoiseFlag = useDenoise and "" or " -no-denoise"
-                local normalizeWLFlag = useNormalizeWL and " -normalize-wl" or ""
-                local cmd = string.format('"%s" -dng%s%s%s -o "%s" "%s"', binary, compressFlag, denoiseFlag, normalizeWLFlag, outputDir, x3fPath)
+                local cmd = string.format('"%s" -dng%s%s -o "%s" "%s"', binary, compressFlag, denoiseFlag, outputDir, x3fPath)
                 logger:info("Executing: " .. cmd)
                 local retval = LrTasks.execute(cmd)
                 

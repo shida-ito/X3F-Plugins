@@ -60,8 +60,9 @@ The installation is automated using a script that places everything in the corre
 2. Select the **folder containing your X3F files**.
 3. In the **X3F Conversion Settings** dialog, enter the **Concurrent Jobs** (default is 4) and click "OK".
 4. Choose whether to apply **Denoise** processing in the subsequent dialog.
-5. Conversion runs in the background (progress is shown via macOS notifications).
-6. Once complete, Capture One's Import window will open automatically for you to import the DNGs.
+5. Choose whether to apply **Normalize WhiteLevel** in the subsequent dialog (recommended to fix highlight yellow cast).
+6. Conversion runs in the background (progress is shown via macOS notifications).
+7. Once complete, Capture One's Import window will open automatically for you to import the DNGs.
 
 ---
 
@@ -80,10 +81,9 @@ The **Normalize WhiteLevel** option (`-normalize-wl`) applies the following pipe
 The fix is compatible with LJPEG compression (`-ljpeg -normalize-wl`).
 
 ### How to enable
-- **Lightroom**: Check **"Normalize WhiteLevel (fixes Capture One highlight yellow)"** in the conversion settings dialog.
-- **Capture One**: Answer **"適用する (Yes)"** to the Normalize WL dialog during conversion.
+- **Capture One**: Answer **"Yes (適用する)"** to the Normalize WL dialog that appears during conversion.
 
-> **Note**: This option is designed primarily for Capture One. Lightroom handles per-channel white levels correctly on its own, but enabling this option causes no harm in Lightroom either.
+> **Note**: This option is for Capture One only. Lightroom handles per-channel white levels correctly on its own, and enabling this option in Lightroom would slightly reduce highlight tonality. The Lightroom plugin does not expose this option.
 
 ---
 
