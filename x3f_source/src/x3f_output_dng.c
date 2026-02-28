@@ -348,13 +348,18 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
           double bl = ilevels.black[c];
           double wl = (double)ilevels.white[c];
           double v = ((double)p[col * 3 + c] - bl) / (wl - bl) * wl0;
-          if (v < 0.0) v = 0.0;
+          /* Clamp to minimum 1 (not 0): LJPEG predictor is 32768, so a
+           * pixel value of 0 produces diff = -32768 = LJPEG category 16
+           * which LR/DNG SDK cannot decode. With min=1 the diff is -32767
+           * = category 15, which is decodable. DNG readers subtract
+           * BlackLevel=1 to recover true 0. Precision loss: 1/wl0 < 0.01%. */
+          if (v < 1.0) v = 1.0;
           if (v > wl0) v = wl0;
           p[col * 3 + c] = (uint16_t)(v + 0.5);
         }
       }
     }
-    ilevels.black[0] = ilevels.black[1] = ilevels.black[2] = 0.0;
+    ilevels.black[0] = ilevels.black[1] = ilevels.black[2] = 1.0;
     ilevels.white[0] = ilevels.white[1] = ilevels.white[2] = (uint32_t)wl0;
 
     /* Highlight clamp: when the highest-ASN channel (B for DP2M) is near
