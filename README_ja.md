@@ -38,6 +38,8 @@ Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exift
 3. **変換設定（X3F Conversion Settings）** ダイアログで設定を確認し「OK」をクリックします。
    - **Parallel Processing**: 並列処理の有効化
    - **Concurrent Jobs**: 同時実行プロセス数（CPUコア数に応じて自動設定）
+   - **Compression**: Lossless JPEG（LJPEG）圧縮でファイルサイズを約60%に削減（デフォルトで有効）
+   - **Denoise**: 変換時にデノイズを適用（現像ソフト側で処理する場合は無効化）
    - **Output Folder**: DNGファイルの保存先（任意に選択可能）
 4. プログレスバーが表示され、変換が開始されます。完了後、生成されたDNGファイルを読み込んでください。
 

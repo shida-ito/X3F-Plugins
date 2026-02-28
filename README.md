@@ -37,6 +37,8 @@ It utilizes the `x3f_extract` tool (Kalpanika project) and `exiftool` to provide
 3. Configure settings in the **X3F Conversion Settings** dialog and click "OK".
    - **Parallel Processing**: Enable multi-core usage.
    - **Concurrent Jobs**: Number of simultaneous processes (auto-set based on your CPU).
+   - **Compression**: Use Lossless JPEG (LJPEG) to reduce file size by ~60% (enabled by default).
+   - **Denoise**: Apply denoising during conversion (disable if you prefer to handle it in post).
    - **Output Folder**: Choose any destination for the DNG files.
 4. A progress bar will appear. Once finished, import and edit the generated DNG files.
 
