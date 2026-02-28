@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # X3F Batch Converter for Capture One
-# Usage: convert.sh source_dir output_dir binary_path use_ljpeg use_denoise concurrency
+# Usage: convert.sh source_dir output_dir binary_path use_ljpeg use_denoise concurrency exiftool_path use_normalize_wl
 
 SOURCE_DIR="$1"
 OUTPUT_DIR="$2"
@@ -10,6 +10,7 @@ USE_LJPEG="$4"
 USE_DENOISE="$5"
 CONCURRENCY="$6"
 EXIFTOOL_PATH="$7"
+USE_NORMALIZE_WL="$8"
 
 # Prepare flags
 LJPEG_FLAG=""
@@ -22,7 +23,12 @@ if [ "$USE_DENOISE" = "false" ]; then
     DENOISE_FLAG="-no-denoise"
 fi
 
-export BINARY_PATH LJPEG_FLAG DENOISE_FLAG OUTPUT_DIR EXIFTOOL_PATH
+NORMALIZE_WL_FLAG=""
+if [ "$USE_NORMALIZE_WL" = "true" ]; then
+    NORMALIZE_WL_FLAG="-normalize-wl"
+fi
+
+export BINARY_PATH LJPEG_FLAG DENOISE_FLAG NORMALIZE_WL_FLAG OUTPUT_DIR EXIFTOOL_PATH
 
 # Function to process a single file
 process_file() {
@@ -45,7 +51,7 @@ process_file() {
     fi
 
     echo "Converting $filename in $x3f_dir..."
-    "$BINARY_PATH" -dng $LJPEG_FLAG $DENOISE_FLAG -o "$TARGET_OUT" "$x3f_path"
+    "$BINARY_PATH" -dng $LJPEG_FLAG $DENOISE_FLAG $NORMALIZE_WL_FLAG -o "$TARGET_OUT" "$x3f_path"
     
     # Check if conversion was successful
     # Binary might output with original case (ext included)

@@ -12,7 +12,14 @@ on run
 	else
 		set useDenoise to "false"
 	end if
-	
+
+	set normalizeResult to (display dialog "ホワイトレベル正規化（Normalize WL）を適用しますか？" buttons {"適用しない (No)", "適用する (Yes)"} default button "適用しない (No)" with title "X3F Conversion Settings")
+	if button returned of normalizeResult is "適用する (Yes)" then
+		set useNormalizeWL to "true"
+	else
+		set useNormalizeWL to "false"
+	end if
+
 	-- Resource path resolution (Relative to the script file)
 	set myPath to (path to me as string)
 	set AppleScript's text item delimiters to ":"
@@ -32,7 +39,7 @@ on run
 	
 	display notification "バックグラウンドで処理中" with title "X3F Converter" subtitle "X3F変換を開始します..."
 	
-	set cmd to "bash " & quoted form of convertScriptPath & " " & quoted form of sourcePath & " " & quoted form of sourcePath & " " & quoted form of binaryPath & " \"true\" " & useDenoise & " " & quoted form of concurrency & " " & quoted form of exiftoolPath
+	set cmd to "bash " & quoted form of convertScriptPath & " " & quoted form of sourcePath & " " & quoted form of sourcePath & " " & quoted form of binaryPath & " \"true\" " & useDenoise & " " & quoted form of concurrency & " " & quoted form of exiftoolPath & " " & useNormalizeWL
 	
 	try
 		do shell script cmd

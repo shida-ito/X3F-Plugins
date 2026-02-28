@@ -33,6 +33,23 @@ static void vec_double_to_float(double *a, float *b, int len) {
     b[i] = a[i];
 }
 
+static double compute_normalize_k_scale(x3f_t *x3f, char *wb) {
+  double gain[3], gain_inv[3];
+  double max_asn;
+  int c;
+
+  if (!x3f_get_gain(x3f, wb, gain))
+    return 1.0;
+  x3f_3x1_invert(gain, gain_inv);
+
+  max_asn = gain_inv[0];
+  for (c = 1; c < 3; c++)
+    if (gain_inv[c] > max_asn)
+      max_asn = gain_inv[c];
+
+  return (max_asn > 0.0) ? 1.0 / max_asn : 1.0;
+}
+
 static int get_camf_rect_as_dngrect(x3f_t *x3f, char *name, x3f_area16_t *image,
                                     int rescale, uint32_t *rect) {
   uint32_t camf_rect[4];
@@ -284,7 +301,7 @@ static x3f_return_t write_camera_profiles(x3f_t *x3f, char *wb,
 /* extern */
 x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
                                       int fix_bad, int denoise, int apply_sgain,
-                                      char *wb, int compress) {
+                                      char *wb, int compress, int normalize_wl) {
   x3f_return_t ret;
   int fd = open(outfilename, O_RDWR | BINMODE | O_CREAT | O_TRUNC, 0444);
   TIFF *f_out;
@@ -298,6 +315,8 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
   x3f_area16_t image;
   x3f_image_levels_t ilevels;
   x3f_area8_t preview;
+  double k_scale = 1.0;
+  uint32_t original_white0 = 0;
   int row;
 
   if (fd == -1)
@@ -316,6 +335,71 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
     TIFFClose(f_out);
     return X3F_ARGUMENT_ERROR;
   }
+
+  if (normalize_wl) {
+    int col, c;
+    k_scale = compute_normalize_k_scale(x3f, wb);
+    original_white0 = ilevels.white[0];
+    double wl0 = floor((double)ilevels.white[0] * k_scale);
+    for (row = 0; row < (int)image.rows; row++) {
+      uint16_t *p = image.data + image.row_stride * row;
+      for (col = 0; col < (int)image.columns; col++) {
+        for (c = 0; c < 3; c++) {
+          double bl = ilevels.black[c];
+          double wl = (double)ilevels.white[c];
+          double v = ((double)p[col * 3 + c] - bl) / (wl - bl) * wl0;
+          if (v < 0.0) v = 0.0;
+          if (v > wl0) v = wl0;
+          p[col * 3 + c] = (uint16_t)(v + 0.5);
+        }
+      }
+    }
+    ilevels.black[0] = ilevels.black[1] = ilevels.black[2] = 0.0;
+    ilevels.white[0] = ilevels.white[1] = ilevels.white[2] = (uint32_t)wl0;
+
+    /* Highlight clamp: when the highest-ASN channel (B for DP2M) is near
+     * physical saturation, smoothstep-blend other channels toward their
+     * neutral-gray cap values to prevent yellow highlights in Capture One. */
+    {
+      double gain_clamp[3], gain_inv_clamp[3];
+      if (x3f_get_gain(x3f, wb, gain_clamp)) {
+        double max_asn = 0.0;
+        int sat_ch = 0, col, c2;
+        double cap[3], thresh;
+
+        x3f_3x1_invert(gain_clamp, gain_inv_clamp);
+        for (c2 = 0; c2 < 3; c2++)
+          if (gain_inv_clamp[c2] > max_asn) {
+            max_asn = gain_inv_clamp[c2];
+            sat_ch = c2;
+          }
+        for (c2 = 0; c2 < 3; c2++)
+          cap[c2] = wl0 * gain_inv_clamp[c2] / max_asn;
+        thresh = wl0 * 0.9;
+
+        for (row = 0; row < (int)image.rows; row++) {
+          uint16_t *p = image.data + image.row_stride * row;
+          for (col = 0; col < (int)image.columns; col++) {
+            double p_sat = (double)p[col * 3 + sat_ch];
+            if (p_sat >= thresh) {
+              double t = (p_sat - thresh) / (wl0 - thresh);
+              if (t > 1.0) t = 1.0;
+              t = t * t * (3.0 - 2.0 * t); /* smoothstep */
+              for (c2 = 0; c2 < 3; c2++) {
+                double pv, limit;
+                if (c2 == sat_ch) continue;
+                pv = (double)p[col * 3 + c2];
+                limit = pv * (1.0 - t) + cap[c2] * t;
+                if (pv > limit)
+                  p[col * 3 + c2] = (uint16_t)(limit + 0.5);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (!x3f_get_preview(x3f, &image, &ilevels, SRGB, apply_sgain, wb, 300,
                        &preview)) {
     x3f_printf(ERR, "Could not get preview\n");
@@ -364,6 +448,11 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
     return X3F_ARGUMENT_ERROR;
   }
   x3f_3x1_invert(gain, gain_inv);
+  if (normalize_wl && k_scale != 1.0) {
+    int c;
+    for (c = 0; c < 3; c++)
+      gain_inv[c] *= k_scale;
+  }
   vec_double_to_float(gain_inv, as_shot_neutral, 3);
   TIFFSetField(f_out, TIFFTAG_ASSHOTNEUTRAL, 3, as_shot_neutral);
 
@@ -410,7 +499,16 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
 
   vec_double_to_float(ilevels.black, black_level, 3);
   TIFFSetField(f_out, TIFFTAG_BLACKLEVEL, 3, black_level);
-  TIFFSetField(f_out, TIFFTAG_WHITELEVEL, 3, ilevels.white);
+  if (normalize_wl) {
+    /* Keep WL at original white[0]+1 so physically-saturated pixels
+       appear at ~63% of WL, preventing Capture One highlight recovery
+       from treating them as clipped and introducing yellow cast. */
+    uint32_t white_uniform[3];
+    white_uniform[0] = white_uniform[1] = white_uniform[2] = original_white0 + 1;
+    TIFFSetField(f_out, TIFFTAG_WHITELEVEL, 3, white_uniform);
+  } else {
+    TIFFSetField(f_out, TIFFTAG_WHITELEVEL, 3, ilevels.white);
+  }
 
   if (apply_sgain)
     if (!write_spatial_gain(x3f, &image, wb, f_out))
