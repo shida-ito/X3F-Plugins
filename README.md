@@ -12,6 +12,7 @@ It utilizes the `x3f_extract` tool (Kalpanika project) and `exiftool` to provide
 - **Denoise Toggle**: Option to disable in-conversion denoising if you prefer handling it in post.
 - **Metadata Preservation**: Automatically copies EXIF data (Date, ISO, Aperture, Sped, etc.) to the DNG files.
 - **Green Noise Fix**: Integrated patch for Merrill series (DP1M/DP2M/DP3M) right-edge color cast.
+- **Normalize WhiteLevel (Capture One highlight fix)**: Eliminates the yellow highlight cast that Capture One produces with Foveon RAW files. See details below.
 - **Bundled Binaries**: Includes macOS binaries for `x3f_extract` and `exiftool`; no extra installation required.
 
 ## System Requirements
@@ -61,6 +62,28 @@ The installation is automated using a script that places everything in the corre
 4. Choose whether to apply **Denoise** processing in the subsequent dialog.
 5. Conversion runs in the background (progress is shown via macOS notifications).
 6. Once complete, Capture One's Import window will open automatically for you to import the DNGs.
+
+---
+
+## Normalize WhiteLevel — Capture One Highlight Fix
+
+### Background
+Foveon sensors have different physical white levels per channel (e.g., R=16383, G=6828, B=3790 on DP2M). The blue channel saturates first. Capture One ignores per-channel white levels and applies the R channel value to all channels, causing the blue channel to clip well before Capture One considers it saturated — resulting in a **yellow cast in highlights**.
+
+### How it works
+The **Normalize WhiteLevel** option (`-normalize-wl`) applies the following pipeline before writing the DNG:
+
+1. **K-scale normalization**: All channels are scaled by `K = 1/max(ASN)` so the earliest-saturating channel maps to 1.0 in `AsShotNeutral`. White levels are made uniform.
+2. **Highlight clamp**: When the saturating channel (B) approaches its physical limit, the other channels are smoothly blended toward their neutral-gray cap values via a smoothstep curve. This prevents yellow from appearing even in extreme highlights.
+3. **Exposure compensation**: `BaselineExposure` is adjusted by `+log2(1/K)` EV so Lightroom and Capture One display the image at the same brightness as without normalization.
+
+The fix is compatible with LJPEG compression (`-ljpeg -normalize-wl`).
+
+### How to enable
+- **Lightroom**: Check **"Normalize WhiteLevel (fixes Capture One highlight yellow)"** in the conversion settings dialog.
+- **Capture One**: Answer **"適用する (Yes)"** to the Normalize WL dialog during conversion.
+
+> **Note**: This option is designed primarily for Capture One. Lightroom handles per-channel white levels correctly on its own, but enabling this option causes no harm in Lightroom either.
 
 ---
 
