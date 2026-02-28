@@ -426,6 +426,10 @@ x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
   if (x3f_get_camf_float(x3f, "SensorISO", &sensor_iso) &&
       x3f_get_camf_float(x3f, "CaptureISO", &capture_iso)) {
     double baseline_exposure = log2(capture_iso / sensor_iso);
+    /* Compensate for K_scale darkening: pixels were multiplied by K,
+     * so add log2(1/K) = log2(max_ASN) EV to restore expected brightness. */
+    if (normalize_wl && k_scale > 0.0 && k_scale < 1.0)
+      baseline_exposure += log2(1.0 / k_scale);
     TIFFSetField(f_out, TIFFTAG_BASELINEEXPOSURE, baseline_exposure);
   }
 
