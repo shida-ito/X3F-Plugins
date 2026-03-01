@@ -97,6 +97,11 @@ fi
 
 echo Build Opencv
 git checkout $OCV_HASH || exit 1
+
+# Patch OpenCVGenPkgconfig.cmake: cmake_minimum_required VERSION 2.x removed in cmake 3.27+
+sed -i.bak 's/cmake_minimum_required(VERSION 2\.[0-9.]*)/cmake_minimum_required(VERSION 3.5)/' \
+    $OCV_SRC/cmake/OpenCVGenPkgconfig.cmake
+
 mkdir -p $OCV_BLD || exit 1
 mkdir -p $OCV_LIB || exit 1
 cd $OCV_BLD || exit 1
