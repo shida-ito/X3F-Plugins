@@ -56,7 +56,9 @@ OCV = ../deps/lib/$(TARGET)/opencv
 
 ZLIB =
 ifneq ($(TARGET_SYS), linux)
+ifneq ($(TARGET_SYS), osx)
 ZLIB = $(OCV)/share/OpenCV/3rdparty/lib/libzlib.a
+endif
 endif
 OCV_AUX = $(ZLIB)
 
@@ -71,6 +73,9 @@ TIFF_LIBS = $(OCV)/share/OpenCV/3rdparty/lib/liblibtiff.a $(ZLIB)
 CFLAGS = $(CFBASE) $(TIFF_CFLAGS) -g -O3 -Wall $(C)
 CXXFLAGS = $(CFLAGS) $(OCV_CFLAGS) -fvisibility-inlines-hidden
 LDFLAGS = $(LDBASE) $(L)
+ifeq ($(TARGET_SYS), osx)
+LDFLAGS += -lz
+endif
 
 BINDIR = ../bin/$(TARGET)
 PROGS = x3f_extract$(EXE) x3f_io_test$(EXE) x3f_matrix_test$(EXE)

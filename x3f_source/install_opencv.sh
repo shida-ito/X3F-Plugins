@@ -60,6 +60,18 @@ if [[ $TARGET =~ ^osx- ]]; then
     # OPENCV_EXTRA_FLAGS="$OPENCV_EXTRA_FLAGS -mmacosx-version-min=10.7 \
     #                    -arch `echo $TARGET | sed 's/^osx-//'` -Wno-pragmas"
     OPENCV_EXTRA_FLAGS="$OPENCV_EXTRA_FLAGS -arch `echo $TARGET | sed 's/^osx-//'` -Wno-pragmas"
+    # macOS SDK compatibility flags (Apple Clang 17+ / modern SDK)
+    # - cmake: OpenCV 3.4.x uses cmake_minimum_required < 3.5 (removed in cmake 3.27+)
+    # - bundled zlib: OS_CODE/fdopen macros conflict with _stdio.h
+    # - bundled libpng: fp.h removed from modern SDK (triggered by TARGET_OS_MAC)
+    # - videoio: FFmpeg 7.x changed CODEC_ID_* to AV_CODEC_ID_*; x3f_extract doesn't need videoio
+    OCV_FLAGS="$OCV_FLAGS \
+        -D CMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -D BUILD_ZLIB=OFF \
+        -D BUILD_PNG=OFF \
+        -D BUILD_opencv_videoio=OFF \
+        -D WITH_FFMPEG=OFF \
+        -D PYTHON3_EXECUTABLE=/usr/bin/python3"
 fi
 
 if [[ $TARGET =~ ^windows- ]]; then
@@ -86,6 +98,11 @@ fi
 
 echo Build Opencv
 git checkout $OCV_HASH || exit 1
+
+# Patch OpenCVGenPkgconfig.cmake: cmake_minimum_required VERSION 2.x removed in cmake 3.27+
+sed -i.bak 's/cmake_minimum_required(VERSION 2\.[0-9.]*)/cmake_minimum_required(VERSION 3.5)/' \
+    $OCV_SRC/cmake/OpenCVGenPkgconfig.cmake
+
 mkdir -p $OCV_BLD || exit 1
 mkdir -p $OCV_LIB || exit 1
 cd $OCV_BLD || exit 1
