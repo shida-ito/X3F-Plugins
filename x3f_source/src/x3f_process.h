@@ -40,6 +40,13 @@ extern int x3f_get_image(x3f_t *x3f,
 			 int apply_sgain,
 			 char *wb);
 
+extern int x3f_convert_image(x3f_t *x3f,
+			     x3f_area16_t *image,
+			     x3f_image_levels_t *ilevels,
+			     x3f_color_encoding_t encoding,
+			     int apply_sgain,
+			     char *wb);
+
 extern int x3f_get_preview(x3f_t *x3f,
 			   x3f_area16_t *image,
 			   x3f_image_levels_t *ilevels,

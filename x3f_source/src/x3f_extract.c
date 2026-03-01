@@ -71,8 +71,7 @@ static void usage(char *progname) {
           "   -wb <WB>        Select white balance preset\n"
           "   -compress       Enable ZIP compression for DNG and TIFF output\n"
           "   -ljpeg          Enable LJPEG compression for DNG output\n"
-          "   -normalize-wl   Normalize per-channel white levels (fixes "
-          "Capture One highlight clipping)\n"
+          "   -normalize-wl   Normalize per-channel WhiteLevel for DNG output\n"
           "   -ocl            Use OpenCL\n"
           "\n"
           "STRANGE STUFF\n"
@@ -393,7 +392,7 @@ int main(int argc, char *argv[]) {
       x3f_printf(INFO, "Dump RAW as TIFF to %s\n", outfile);
       ret_dump =
           x3f_dump_raw_data_as_tiff(x3f, tmpfile, color_encoding, crop, fix_bad,
-                                    denoise, sgain, wb, compress);
+                                    denoise, sgain, wb, compress, normalize_wl);
       break;
     case DNG:
       x3f_printf(INFO, "Dump RAW as DNG to %s\n", outfile);

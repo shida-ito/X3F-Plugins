@@ -928,6 +928,17 @@ static int expand_quattro(x3f_t *x3f, int denoise, x3f_area16_t *expanded)
   return 1;
 }
 
+/* extern - Apply color conversion in-place on an existing decoded image */
+int x3f_convert_image(x3f_t *x3f,
+                      x3f_area16_t *image,
+                      x3f_image_levels_t *ilevels,
+                      x3f_color_encoding_t encoding,
+                      int apply_sgain,
+                      char *wb)
+{
+  return convert_data(x3f, image, ilevels, encoding, apply_sgain, wb);
+}
+
 /* extern */ int x3f_get_preview(x3f_t *x3f,
 				 x3f_area16_t *image,
 				 x3f_image_levels_t *ilevels,

@@ -13,8 +13,11 @@
 #include "x3f_io.h"
 
 extern x3f_return_t x3f_dump_raw_data_as_dng(x3f_t *x3f, char *outfilename,
-                                             int fix_bad, int denoise,
-                                             int apply_sgain, char *wb,
-                                             int compress, int normalize_wl);
+					     int fix_bad,
+					     int denoise,
+					     int apply_sgain,
+					     char *wb,
+					     int compress,
+					     int normalize_wl);
 
 #endif
