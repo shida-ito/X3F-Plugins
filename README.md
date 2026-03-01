@@ -60,11 +60,13 @@ The installation is automated using a script that places everything in the corre
 ### 2. How to Use
 1. Select **Scripts > X3F Converter** from the menu bar.
 2. Select the **folder containing your X3F files**.
-3. In the **X3F Conversion Settings** dialog, enter the **Concurrent Jobs** (default is 4) and click "OK".
-4. Choose whether to apply **Denoise** processing in the subsequent dialog.
-5. Choose whether to apply **Normalize WhiteLevel** in the subsequent dialog (recommended to fix highlight yellow cast).
-6. Conversion runs in the background (progress is shown via macOS notifications).
-7. Once complete, Capture One's Import window will open automatically for you to import the DNGs.
+3. Configure all settings in the **X3F Conversion Settings** dialog and click "OK":
+   - **Jobs**: Number of simultaneous processes (default: 4)
+   - **LJPEG**: Lossless JPEG compression — `yes` to reduce file size ~60% (default: yes)
+   - **Denoise**: Apply denoising during conversion — `no` to handle it in post (default: yes)
+   - **Normalize WL**: Normalize white levels to fix yellow highlights in Capture One (default: no, recommended: yes)
+4. Conversion runs in the background (progress is shown via macOS notifications).
+5. Once complete, Capture One's Import window will open automatically for you to import the DNGs.
 
 ---
 
@@ -102,7 +104,75 @@ Viewing DNG files in **macOS Preview or Quick Look may show a reddish tint**. Th
 ### Converting from SD Cards
 SD card speeds can be a bottleneck. For best performance, copy files to an internal SSD before conversion.
 
-## Developers & Credits
-- **Troubleshooting**: Check the Lightroom logs at `~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log` if issues occur.
-- **License**: This project is under the **MIT License**. Included tools: `x3f_extract` (Kalpanika) is BSD, `ExifTool` is Perl Artistic/GPL.
-- **Disclaimer**: This is a personal project. Requests for new features or PRs are not accepted. The author is not responsible for any damages resulting from the use of this software.
+## For Developers
+
+### Building x3f_extract
+Run `make` in the `x3f_source/` directory to build `x3f_extract`.
+
+```bash
+# Build
+cd x3f_source && make
+
+# Command line usage examples
+./bin/osx-x86_64/x3f_extract -dng -ljpeg -o /output/dir input.X3F
+./bin/osx-x86_64/x3f_extract -dng -ljpeg -normalize-wl -o /output/dir input.X3F
+```
+
+**Output Format** — choose one:
+
+| Flag | Description |
+|------|-------------|
+| `-dng` | Output as DNG (Linear RAW) — recommended for Lightroom / Capture One |
+| `-tiff` | Output as 16-bit sRGB TIFF — fully processed, white-balance baked in |
+| `-jpg` | Output as JPEG |
+| `-ppm` | Output as PPM |
+
+**Compression** — applies to DNG output:
+
+| Flag | Description |
+|------|-------------|
+| `-ljpeg` | ✅ *Added by this project* — Lossless JPEG compression (~60% size reduction, no quality loss) |
+
+**Processing Options**:
+
+| Flag | Description |
+|------|-------------|
+| `-normalize-wl` | ✅ *Added by this project* — Normalize per-channel white levels. Eliminates the yellow highlight cast in Capture One. Recommended for Capture One users. |
+| `-no-denoise` | Disable in-conversion denoising (handle noise in post instead) |
+| `-no-crop` | Disable sensor crop (include masked pixels) |
+| `-wb <mode>` | White balance mode (e.g. `auto`, `sunlight`) |
+
+**Output Location**:
+
+| Flag | Description |
+|------|-------------|
+| `-o <dir>` | Output directory |
+
+After building, copy the binary to the plugin directories:
+```bash
+cp x3f_source/bin/osx-x86_64/x3f_extract CaptureOne/X3F_Resources/bin/x3f_extract
+cp x3f_source/bin/osx-x86_64/x3f_extract Lightroom/X3FforLrC.lrplugin/bin/x3f_extract
+```
+
+### About the Bundle
+This repository includes not only the `exiftool` executable but also the necessary Perl libraries (`lib` folder), so `exiftool` works without additional dependencies. If it fails, it falls back to the system-installed `/usr/local/bin/exiftool`.
+
+## Troubleshooting
+- **If errors occur**: Check the Lightroom log at `~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log`.
+- **External drives**: If processing files on an external drive, verify access permissions.
+
+## License and Credits
+This plugin is provided under the **MIT License**.
+
+### x3f_extract (Kalpanika)
+- **Project**: [https://github.com/kalpanika/x3f](https://github.com/kalpanika/x3f)
+- **License**: BSD-style License
+- **Copyright**: (c) 2015, Roland Karlsson, Erik Karlsson, Mark Roden and contributors.
+
+### ExifTool
+- **Project**: [https://exiftool.org/](https://exiftool.org/)
+- **License**: Perl Artistic License / GNU GPL
+- **Copyright**: (c) 2003-2025, Phil Harvey
+
+## Disclaimer
+This is a personal project. Requests for new features or PRs are not accepted. The author is not responsible for any damages resulting from the use of this software.

@@ -59,11 +59,13 @@ Kalpanika プロジェクトの `x3f_extract` ツール（DNG変換）と `exift
 ### 2. 使い方
 1. メニューバーの **「スクリプト」 > 「X3F Converter」** を選択します。
 2. 処理したい **X3Fファイルが入ったフォルダ** を選択します。
-3. **[X3F Conversion Settings]** ダイアログで **同時並列処理数**（デフォルト4）を入力し、OKを押します。
-4. **デノイズ処理（Denoise）** を適用するかどうかのダイアログが出るので、任意に選択します。
-5. **ホワイトレベル正規化（Normalize WL）** を適用するかどうかのダイアログが出るので選択します（ハイライト黄色補正には「適用する」を推奨）。
-6. 変換がバックグラウンドで開始されます。進行状況は通知センターに表示されます。
-7. 変換完了後、自動的に Capture One のインポート画面が開くので、DNGファイルをインポートしてください。
+3. **[X3F Conversion Settings]** ダイアログで各設定を確認・編集し「OK」をクリックします：
+   - **Jobs**: 同時並列処理数（デフォルト: 4）
+   - **LJPEG**: Lossless JPEG 圧縮 — `yes` でファイルサイズを約60%削減（デフォルト: yes）
+   - **Denoise**: 変換時にデノイズを適用 — `no` で現像ソフト側で処理（デフォルト: yes）
+   - **Normalize WL**: ホワイトレベル正規化（Capture One のハイライト黄色補正）（デフォルト: no、推奨: yes）
+4. 変換がバックグラウンドで開始されます。進行状況は通知センターに表示されます。
+5. 変換完了後、自動的に Capture One のインポート画面が開くので、DNGファイルをインポートしてください。
 
 ---
 
@@ -101,7 +103,75 @@ macOSの「プレビュー」や「クイックルック」で変換後のDNGを
 ### SDカードからの直接変換について
 SDカードの転送速度がボトルネックとなるため、高速に処理したい場合は一旦内蔵SSD等の高速ストレージにコピーしてから実行することをお勧めします。
 
-## 開発者向け / その他
-- **トラブルシューティング**: エラー時は Lightroom のログ（`~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log`）等を確認してください。
-- **ライセンス**: 本プラグインは **MIT ライセンス** です。同梱の `x3f_extract` (Kalpanika) は BSD、`ExifTool` は Perl Artistic/GPL ライセンスです。
-- **免責事項**: 個人作成のプロジェクトにつき、機能追加要望やPRは受け付けておりません。本ツールの使用による損害について作者は責任を負いません。
+## 開発者向け情報
+
+### x3f_extract のビルド
+`x3f_source/` ディレクトリで `make` を実行すると `x3f_extract` をビルドできます。
+
+```bash
+# ビルド
+cd x3f_source && make
+
+# コマンドラインからの使用例
+./bin/osx-x86_64/x3f_extract -dng -ljpeg -o /output/dir input.X3F
+./bin/osx-x86_64/x3f_extract -dng -ljpeg -normalize-wl -o /output/dir input.X3F
+```
+
+**出力形式** — いずれか1つを指定：
+
+| フラグ | 説明 |
+|--------|------|
+| `-dng` | DNG（Linear RAW）として出力 — Lightroom / Capture One で推奨 |
+| `-tiff` | 16bit sRGB TIFF として出力 — ホワイトバランスが焼き込まれた現像済み画像 |
+| `-jpg` | JPEG として出力 |
+| `-ppm` | PPM として出力 |
+
+**圧縮** — DNG 出力時に使用：
+
+| フラグ | 説明 |
+|--------|------|
+| `-ljpeg` | ✅ *本プロジェクトで追加* — Lossless JPEG 圧縮（約60%サイズ削減、画質劣化なし） |
+
+**処理オプション**：
+
+| フラグ | 説明 |
+|--------|------|
+| `-normalize-wl` | ✅ *本プロジェクトで追加* — チャンネルごとのホワイトレベルを正規化。Capture One のハイライト黄色問題を解消。Capture One ユーザーに推奨。 |
+| `-no-denoise` | 変換時のデノイズを無効化（現像ソフト側でノイズ処理する場合に使用） |
+| `-no-crop` | センサークロップを無効化（マスク領域を含む） |
+| `-wb <mode>` | ホワイトバランスモードを指定（例: `auto`、`sunlight`） |
+
+**出力先**：
+
+| フラグ | 説明 |
+|--------|------|
+| `-o <dir>` | 出力ディレクトリの指定 |
+
+ビルド後はバイナリをプラグインにコピーしてください：
+```bash
+cp x3f_source/bin/osx-x86_64/x3f_extract CaptureOne/X3F_Resources/bin/x3f_extract
+cp x3f_source/bin/osx-x86_64/x3f_extract Lightroom/X3FforLrC.lrplugin/bin/x3f_extract
+```
+
+### バンドルについて
+本リポジトリには `exiftool` の実行ファイルだけでなく、必要な Perl ライブラリ（`lib` フォルダ）も同梱しています。万が一動作しない場合は、システムにインストールされた `/usr/local/bin/exiftool` にフォールバックします。
+
+## トラブルシューティング
+- **エラーが発生する場合**: Lightroom のログ（`~/Library/Logs/Adobe/Lightroom/LrClassicLogs/X3FforLrC.log`）を確認してください。
+- **外部ドライブ上のファイル**: アクセス権限を確認してください。
+
+## ライセンスとクレジット
+本プラグイン自体は **MIT ライセンス** の下で提供されています。
+
+### x3f_extract (Kalpanika)
+- **Project**: [https://github.com/kalpanika/x3f](https://github.com/kalpanika/x3f)
+- **License**: BSD-style License
+- **Copyright**: (c) 2015, Roland Karlsson, Erik Karlsson, Mark Roden and contributors.
+
+### ExifTool
+- **Project**: [https://exiftool.org/](https://exiftool.org/)
+- **License**: Perl Artistic License / GNU GPL
+- **Copyright**: (c) 2003-2025, Phil Harvey
+
+## 免責事項
+個人作成のプロジェクトにつき、機能追加要望やPRは受け付けておりません。本ツールの使用による損害について作者は責任を負いません。
