@@ -26,7 +26,7 @@ It utilizes the `x3f_extract` tool (Kalpanika project) and `exiftool` to provide
 ## Usage in Adobe Lightroom Classic
 
 ### 1. Installation
-1. Download (or Clone) this repository and save `Lightroom/X3FforLrC.lrplugin` to a location of your choice (e.g., `~/Documents/Plugins/`).
+1. Download the latest release from the [Releases page](https://github.com/shida-ito/X3F-Plugins/releases) and extract the archive. Save `Lightroom/X3FforLrC.lrplugin` to a location of your choice (e.g., `~/Documents/Plugins/`).
 2. Launch Lightroom Classic and open **File > Plug-in Manager**.
 3. Click the **Add** button and select the `.lrplugin` folder you saved.
 4. Ensure the status is "Enabled" and click "Done".
@@ -42,13 +42,15 @@ It utilizes the `x3f_extract` tool (Kalpanika project) and `exiftool` to provide
    - **Output Folder**: Choose any destination for the DNG files.
 4. A progress bar will appear. Once finished, import and edit the generated DNG files.
 
+> **First run note**: macOS may block the bundled binaries on first use. If a security warning appears, see [First Run Security](#first-run-security-macos) below. Since the dialog appears **once per file**, test with a single X3F file first to clear it before processing a full batch.
+
 ---
 
 ## Usage in Capture One
 
 ### 1. Installation
 The installation is automated using a script that places everything in the correct location and handles permissions.
-1. Open Terminal and navigate to the `CaptureOne` folder in this repository:
+1. Download the latest release from the [Releases page](https://github.com/shida-ito/X3F-Plugins/releases), extract the archive, then open Terminal and navigate to the `CaptureOne` folder:
    ```bash
    cd CaptureOne
    bash install_fix.sh
@@ -67,6 +69,8 @@ The installation is automated using a script that places everything in the corre
    - **Normalize WL**: Normalize white levels to fix yellow highlights in Capture One (default: no, recommended: yes)
 4. Conversion runs in the background (progress is shown via macOS notifications).
 5. Once complete, Capture One's Import window will open automatically for you to import the DNGs.
+
+> **First run note**: macOS may block the bundled binaries on first use. If a security warning appears, see [First Run Security](#first-run-security-macos) below. Since the dialog appears **once per file**, test with a single X3F file first to clear it before processing a full batch.
 
 ---
 
