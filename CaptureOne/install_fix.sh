@@ -39,3 +39,21 @@ rm -rf "$HOME/Library/Application Support/Capture One/Plug-ins/X3FforC1.c1plugin
 
 echo "--- Done! ---"
 echo "Installation complete."
+echo ""
+
+# Test if x3f_extract can run (macOS Gatekeeper may block unsigned binaries)
+echo "Testing x3f_extract..."
+"$RESOURCE_DEST/bin/x3f_extract" 2>/dev/null
+EXIT_CODE=$?
+# x3f_extract exits 0 or 1 normally (usage); signal-killed = 128 + signal (e.g. SIGKILL=137)
+if [ $EXIT_CODE -ge 128 ]; then
+    echo ""
+    echo "WARNING: x3f_extract was blocked by macOS security."
+    echo "Please allow it manually:"
+    echo "  1. Open: System Settings > Privacy & Security"
+    echo "  2. Scroll down to the Security section"
+    echo "  3. Click 'Allow Anyway' next to x3f_extract"
+    echo "  4. Run this script again to verify"
+else
+    echo "x3f_extract OK"
+fi
