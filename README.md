@@ -26,14 +26,15 @@ It utilizes the `x3f_extract` tool (Kalpanika project) and `exiftool` to provide
 ## Usage in Adobe Lightroom Classic
 
 ### 1. Installation
-1. Download the latest release from the [Releases page](https://github.com/shida-ito/X3F-Plugins/releases) and extract the archive. Save `Lightroom/X3FforLrC.lrplugin` to a location of your choice (e.g., `~/Documents/Plugins/`).
-2. **Apple Silicon Mac only**: Run the following in Terminal to allow the bundled binary to execute (required on macOS Sequoia and later):
+1. Download the latest release from the [Releases page](https://github.com/shida-ito/X3F-Plugins/releases) and extract the archive.
+2. Open Terminal, navigate to the extracted `Lightroom` folder, and run the install script:
    ```bash
-   xattr -dr com.apple.quarantine /path/to/X3FforLrC.lrplugin
-   codesign -s - --force /path/to/X3FforLrC.lrplugin/bin/x3f_extract
+   cd Lightroom
+   bash install.sh
    ```
+   This removes quarantine flags and applies the required code signature for Apple Silicon Macs.
 3. Launch Lightroom Classic and open **File > Plug-in Manager**.
-4. Click the **Add** button and select the `.lrplugin` folder you saved.
+4. Click the **Add** button and select the `X3FforLrC.lrplugin` folder shown at the end of the install script output.
 5. Ensure the status is "Enabled" and click "Done".
 
 ### 2. How to Use
@@ -102,7 +103,7 @@ The fix is compatible with LJPEG compression (`-ljpeg -normalize-wl`).
 
 ### First Run Security (macOS)
 - **Capture One**: `install_fix.sh` handles quarantine removal and code signing automatically. No manual action needed.
-- **Lightroom (Apple Silicon)**: See step 2 of the [Lightroom installation](#1-installation) above. On Apple Silicon (macOS Sequoia and later), unsigned arm64 binaries are blocked by AMFI and will not show an "Open Anyway" dialog — the `xattr` + `codesign` commands are required.
+- **Lightroom**: `install.sh` handles quarantine removal and code signing automatically. No manual action needed.
 
 ### ⚠️ DNG Preview Limitation
 Viewing DNG files in **macOS Preview or Quick Look may show a reddish tint**. This is a macOS limitation. **The files will display and edit with correct colors in Lightroom, Capture One, and other compatible software.**
