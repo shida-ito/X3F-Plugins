@@ -27,9 +27,14 @@ It utilizes the `x3f_extract` tool (Kalpanika project) and `exiftool` to provide
 
 ### 1. Installation
 1. Download the latest release from the [Releases page](https://github.com/shida-ito/X3F-Plugins/releases) and extract the archive. Save `Lightroom/X3FforLrC.lrplugin` to a location of your choice (e.g., `~/Documents/Plugins/`).
-2. Launch Lightroom Classic and open **File > Plug-in Manager**.
-3. Click the **Add** button and select the `.lrplugin` folder you saved.
-4. Ensure the status is "Enabled" and click "Done".
+2. **Apple Silicon Mac only**: Run the following in Terminal to allow the bundled binary to execute (required on macOS Sequoia and later):
+   ```bash
+   xattr -dr com.apple.quarantine /path/to/X3FforLrC.lrplugin
+   codesign -s - --force /path/to/X3FforLrC.lrplugin/bin/x3f_extract
+   ```
+3. Launch Lightroom Classic and open **File > Plug-in Manager**.
+4. Click the **Add** button and select the `.lrplugin` folder you saved.
+5. Ensure the status is "Enabled" and click "Done".
 
 ### 2. How to Use
 1. Select **File > Plug-in Extras > Convert X3F (Kalpanika)** from the menu bar.
@@ -96,9 +101,8 @@ The fix is compatible with LJPEG compression (`-ljpeg -normalize-wl`).
 ## Common Notes
 
 ### First Run Security (macOS)
-If execution is blocked by macOS, allow it via:
-- **Method 1**: Click "Open Anyway" in **System Settings > Privacy & Security**.
-- **Method 2**: Run `xattr -cr /path/to/plugin` in Terminal to remove the quarantine flag.
+- **Capture One**: `install_fix.sh` handles quarantine removal and code signing automatically. No manual action needed.
+- **Lightroom (Apple Silicon)**: See step 2 of the [Lightroom installation](#1-installation) above. On Apple Silicon (macOS Sequoia and later), unsigned arm64 binaries are blocked by AMFI and will not show an "Open Anyway" dialog — the `xattr` + `codesign` commands are required.
 
 ### ⚠️ DNG Preview Limitation
 Viewing DNG files in **macOS Preview or Quick Look may show a reddish tint**. This is a macOS limitation. **The files will display and edit with correct colors in Lightroom, Capture One, and other compatible software.**
@@ -109,11 +113,15 @@ SD card speeds can be a bottleneck. For best performance, copy files to an inter
 ## For Developers
 
 ### Building x3f_extract
-Run `make` in the `x3f_source/` directory to build `x3f_extract`.
+OpenCV must be built before compiling `x3f_extract`. The cmake configuration is already included in the repository — only the build step needs to be run.
 
 ```bash
-# Build
-cd x3f_source && make
+# Step 1: Build OpenCV (first time only; takes 10–30 minutes)
+cd x3f_source/deps/src/osx-x86_64/opencv_build
+make -j$(sysctl -n hw.logicalcpu) install
+
+# Step 2: Build x3f_extract
+cd x3f_source/src && make
 
 # Command line usage examples
 ./bin/osx-x86_64/x3f_extract -dng -ljpeg -o /output/dir input.X3F
@@ -150,11 +158,19 @@ cd x3f_source && make
 |------|-------------|
 | `-o <dir>` | Output directory |
 
-After building, copy the binary to the plugin directories:
+After building, copy the binary to the plugin directories and apply code signing:
 ```bash
 cp x3f_source/bin/osx-x86_64/x3f_extract CaptureOne/X3F_Resources/bin/x3f_extract
 cp x3f_source/bin/osx-x86_64/x3f_extract Lightroom/X3FforLrC.lrplugin/bin/x3f_extract
+
+# Capture One: run install_fix.sh — it applies codesign automatically
+cd CaptureOne && bash install_fix.sh
+
+# Lightroom: apply codesign manually
+codesign -s - --force Lightroom/X3FforLrC.lrplugin/bin/x3f_extract
 ```
+
+> **Note**: On Apple Silicon (macOS Sequoia and later), arm64 binaries require at minimum an ad-hoc code signature to run. `install_fix.sh` handles this for Capture One; the `codesign` command above is required for Lightroom.
 
 ### About the Bundle
 This repository includes not only the `exiftool` executable but also the necessary Perl libraries (`lib` folder), so `exiftool` works without additional dependencies. If it fails, it falls back to the system-installed `/usr/local/bin/exiftool`.
