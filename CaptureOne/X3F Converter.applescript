@@ -1,5 +1,9 @@
 on run
-	set sourceFolder to choose folder with prompt "Select Folder with X3F files"
+	try
+		set sourceFolder to choose folder with prompt "Select Folder with X3F files"
+	on error number -128
+		return
+	end try
 	set sourcePath to POSIX path of sourceFolder
 
 	-- CPU コア数から並列処理数のデフォルトを計算（LR プラグインと同じ方式）

@@ -14,6 +14,7 @@ echo "--- Capture One X3F Script Deployment ---"
 
 # 1. Setup Resource Folder
 echo "Installing Resources..."
+mkdir -p "$C1_SCRIPT_DEST"
 rm -rf "$RESOURCE_DEST"
 cp -R "$REPO_DIR/X3F_Resources" "$C1_SCRIPT_DEST/"
 
