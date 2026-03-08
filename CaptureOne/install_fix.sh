@@ -47,26 +47,16 @@ echo "--- Done! ---"
 echo "Installation complete."
 echo ""
 
-# Test if x3f_extract can run (macOS Gatekeeper may block unsigned binaries)
+# Verify x3f_extract runs correctly after signing
 echo "Testing x3f_extract..."
 "$RESOURCE_DEST/bin/x3f_extract" 2>/dev/null
 EXIT_CODE=$?
-# x3f_extract exits 0 or 1 normally (usage); signal-killed = 128 + signal (e.g. SIGKILL=137)
+# x3f_extract exits 0 or 1 normally (usage); anything else is unexpected
 if [ $EXIT_CODE -ge 128 ]; then
     echo ""
-    echo "WARNING: x3f_extract was blocked by macOS security."
-    echo "警告: macOS のセキュリティによって x3f_extract がブロックされました。"
-    echo ""
-    echo "Please allow it manually:"
-    echo "手動で許可してください:"
-    echo "  1. Open: System Settings > Privacy & Security"
-    echo "     システム設定 > プライバシーとセキュリティ を開く"
-    echo "  2. Scroll down to the Security section"
-    echo "     「セキュリティ」セクションまでスクロール"
-    echo "  3. Click 'Allow Anyway' next to x3f_extract"
-    echo "     x3f_extract の横にある「このまま許可」をクリック"
-    echo "  4. Run this script again to verify"
-    echo "     このスクリプトを再実行して確認"
+    echo "ERROR: x3f_extract failed to run (exit $EXIT_CODE)."
+    echo "エラー: x3f_extract が起動できませんでした (終了コード $EXIT_CODE)。"
+    echo "Try rebuilding the binary: cd x3f_source/src && make"
 else
     echo "x3f_extract OK"
 fi
