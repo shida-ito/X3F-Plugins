@@ -13,9 +13,9 @@ on run
 
 	-- 全設定を1つのダイアログで表示（各行: ラベル: 値）
 	set defaultSettings to "Jobs: " & (defaultJobs as string) & return & "LJPEG: yes" & return & "Denoise: yes" & return & "Normalize WL: yes"
-	set settingsResult to display dialog "X3F Conversion Settings" & return & return & "各項目のコロン右の値を編集してください（yes / no）：" ¬
+	set settingsResult to display dialog "X3F Conversion Settings" & return & return & "Edit the value after each colon (yes / no):" ¬
 		default answer defaultSettings ¬
-		buttons {"キャンセル (Cancel)", "OK"} default button "OK" ¬
+		buttons {"Cancel", "OK"} default button "OK" ¬
 		with title "X3F Conversion Settings"
 	if button returned of settingsResult is not "OK" then return
 	set settingsText to text returned of settingsResult
@@ -65,14 +65,14 @@ on run
 	set exiftoolPath to resourcesPath & "bin/exiftool"
 	set convertScriptPath to resourcesPath & "convert.sh"
 
-	display notification "バックグラウンドで処理中" with title "X3F Converter" subtitle "X3F変換を開始します..."
+	display notification "Processing in background" with title "X3F Converter" subtitle "Starting X3F conversion..."
 
 	set cmd to "bash " & quoted form of convertScriptPath & " " & quoted form of sourcePath & " " & quoted form of sourcePath & " " & quoted form of binaryPath & " " & useLjpeg & " " & useDenoise & " " & quoted form of concurrency & " " & quoted form of exiftoolPath & " " & useNormalizeWL
 
 	try
 		do shell script cmd
 
-		display notification "Capture Oneへのインポートを開始します..." with title "X3F Converter"
+		display notification "Importing into Capture One..." with title "X3F Converter"
 
 		tell application "Capture One"
 			activate
@@ -83,8 +83,8 @@ on run
 			run script importScript
 		end try
 
-		display alert "Success" message "X3Fファイルの変換が完了しました！" as informational
+		display alert "Success" message "X3F conversion completed!" as informational
 	on error errMsg
-		display alert "Error" message "変換に失敗しました。" & return & return & "詳細: " & errMsg & return & return & "場所: " & resourcesPath as critical
+		display alert "Error" message "Conversion failed." & return & return & "Details: " & errMsg & return & return & "Resources: " & resourcesPath as critical
 	end try
 end run
