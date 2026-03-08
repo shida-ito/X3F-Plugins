@@ -49,11 +49,18 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -ge 128 ]; then
     echo ""
     echo "WARNING: x3f_extract was blocked by macOS security."
+    echo "警告: macOS のセキュリティによって x3f_extract がブロックされました。"
+    echo ""
     echo "Please allow it manually:"
+    echo "手動で許可してください:"
     echo "  1. Open: System Settings > Privacy & Security"
+    echo "     システム設定 > プライバシーとセキュリティ を開く"
     echo "  2. Scroll down to the Security section"
+    echo "     「セキュリティ」セクションまでスクロール"
     echo "  3. Click 'Allow Anyway' next to x3f_extract"
+    echo "     x3f_extract の横にある「このまま許可」をクリック"
     echo "  4. Run this script again to verify"
+    echo "     このスクリプトを再実行して確認"
 else
     echo "x3f_extract OK"
 fi
