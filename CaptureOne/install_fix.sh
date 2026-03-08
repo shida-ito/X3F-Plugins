@@ -56,7 +56,8 @@ if [ $EXIT_CODE -ge 128 ]; then
     echo ""
     echo "ERROR: x3f_extract failed to run (exit $EXIT_CODE)."
     echo "エラー: x3f_extract が起動できませんでした (終了コード $EXIT_CODE)。"
-    echo "Try rebuilding the binary: cd x3f_source/src && make"
+    echo "The binary may be corrupted. Please obtain a new copy and run this script again."
+    echo "バイナリが破損している可能性があります。最新版を入手してこのスクリプトを再実行してください。"
 else
     echo "x3f_extract OK"
 fi
