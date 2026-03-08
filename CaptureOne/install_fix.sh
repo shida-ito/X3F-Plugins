@@ -27,6 +27,12 @@ chmod +x "$RESOURCE_DEST/convert.sh"
 # Remove quarantine flags
 xattr -rd com.apple.quarantine "$RESOURCE_DEST" 2>/dev/null
 
+# Ad-hoc code sign the binaries
+# Required for arm64 binaries on Apple Silicon: unsigned arm64 binaries are killed by AMFI
+# (unlike x86_64, arm64 requires at minimum an ad-hoc signature to run)
+codesign -s - --force "$RESOURCE_DEST/bin/x3f_extract"
+codesign -s - --force "$RESOURCE_DEST/bin/exiftool"
+
 # 2. Setup Scripts Menu
 echo "Installing Script..."
 # Copy the AppleScript source directly
