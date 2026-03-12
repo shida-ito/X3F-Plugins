@@ -255,7 +255,7 @@ local function main()
                                 " -EXIF:ShutterSpeedValue -EXIF:ApertureValue -EXIF:FocalLength" ..
                                 " -EXIF:Make -EXIF:Model -EXIF:LensModel" ..
                                 " -EXIF:ExposureProgram -EXIF:MeteringMode -EXIF:Flash" ..
-                                " -EXIF:ExposureBiasValue -GPS:all"
+                                " -EXIF:ExposureBiasValue -EXIF:Orientation -GPS:all"
                             if LrFileUtils.exists(exiftoolPath) then
                                 if MAC_ENV then LrTasks.execute("chmod +x " .. string.format("%q", exiftoolPath)) end
                                 exiftoolCmd = string.format('%s -overwrite_original -tagsfromfile %s%s %s', string.format("%q", exiftoolPath), string.format("%q", x3fPath), exifTags, string.format("%q", dngPath))

@@ -74,7 +74,7 @@ process_file() {
             -EXIF:ShutterSpeedValue -EXIF:ApertureValue -EXIF:FocalLength \
             -EXIF:Make -EXIF:Model -EXIF:LensModel \
             -EXIF:ExposureProgram -EXIF:MeteringMode -EXIF:Flash \
-            -EXIF:ExposureBiasValue -GPS:all \
+            -EXIF:ExposureBiasValue -EXIF:Orientation -GPS:all \
             "$dng_path"
     fi
 }
