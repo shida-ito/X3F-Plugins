@@ -83,7 +83,7 @@ export -f process_file
 
 # Find X3F files and process in parallel
 # Removed -maxdepth 1 to allow recursive processing
-find "$SOURCE_DIR" -iname "*.x3f" -print0 | xargs -0 -P "$CONCURRENCY" bash -c 'for f; do process_file "$f" || exit 1; done' _
+find "$SOURCE_DIR" -iname "*.x3f" ! -name "._*" -print0 | xargs -0 -P "$CONCURRENCY" bash -c 'for f; do process_file "$f" || exit 1; done' _
 if [ "${PIPESTATUS[1]}" -ne 0 ]; then
     echo "ERROR: One or more conversions failed" >&2
     exit 1
