@@ -7,3 +7,7 @@ CLAUDE.md
 *.lrcat
 *.lrcat-data
 *.lrcat-lock
+
+# Local workspace artifacts
+.claude/
+X3F_Sample/
