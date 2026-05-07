@@ -16,10 +16,10 @@ It utilizes the `x3f_extract` tool (Kalpanika project) and `exiftool` to provide
 - **Bundled Binaries**: Includes macOS binaries for `x3f_extract` and `exiftool`; no extra installation required.
 
 ## System Requirements
-- **OS**: macOS (Apple Silicon / Intel)
+- **OS**: macOS (Apple Silicon)
 - **Supported Apps**: 
   - Adobe Lightroom Classic
-  - Capture One (macOS only)
+  - Capture One
 
 ---
 
@@ -95,7 +95,7 @@ The fix is compatible with LJPEG compression (`-ljpeg -normalize-wl`).
 ### How to enable
 - **Capture One**: Answer **"Yes (適用する)"** to the Normalize WL dialog that appears during conversion.
 
-> **Note**: This option is for Capture One only. Lightroom handles per-channel white levels correctly on its own, and enabling this option in Lightroom would slightly reduce highlight tonality. The Lightroom plugin does not expose this option.
+> **Note**: This option is for Capture One only. Lightroom handles per-channel white levels correctly on its own, and enabling this option in Lightroom would slightly reduce highlight tonality.
 
 ---
 
